@@ -1,0 +1,368 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="admin-dashboard">
+    <div class="admin-sidebar">
+        <ul>
+            <li><a href="#events" class="active" onclick="showAdminTab('events')">Мероприятия</a></li>
+            <li><a href="#volunteers" onclick="showAdminTab('volunteers')">Волонтеры</a></li>
+            <li><a href="#stats" onclick="showAdminTab('stats')">Статистика</a></li>
+        </ul>
+    </div>
+
+    <div class="admin-content">
+        <!-- Вкладка Мероприятия -->
+        <div class="tab-pane active" id="events-tab">
+            <div class="admin-header">
+                <h2>Управление мероприятиями</h2>
+                <a href="{{ url_for('admin_event_new') }}" class="btn btn-primary">Создать мероприятие</a>
+            </div>
+
+            {% if events %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Название</th>
+                        <th>Место проведения</th>
+                        <th>Даты проведения</th>
+                        <th>Даты регистрации</th>
+                        <th>Регистрация</th>
+                        <th>Участники</th>
+                        <th>Волонтеры</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in events %}
+                    <tr>
+                        <td>{{ event.id }}</td>
+                        <td>{{ event.title }}</td>
+                        <td>{{ event.location }}</td>
+                        <td>{{ event.get_event_dates_string() }}</td>
+                        <td>{{ event.get_registration_dates_string() }}</td>
+                        <td>
+                            {% if event.use_volunteer_template and event.use_participant_template %}
+                                Волонтеры и участники
+                            {% elif event.use_volunteer_template %}
+                                Только волонтеры
+                            {% elif event.use_participant_template %}
+                                Только участники
+                            {% else %}
+                                Закрыта
+                            {% endif %}
+                        </td>
+                        <td>{{ event.get_participant_count() }}</td>
+                        <td>{{ event.get_volunteer_count() }}</td>
+                        <td>
+                            <a href="{{ url_for('admin_event_detail', event_id=event.id) }}" class="btn btn-secondary btn-small">Просмотр</a>
+                            <a href="{{ url_for('admin_event_edit', event_id=event.id) }}" class="btn btn-outline btn-small">Редактировать</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="no-data">
+                <p>Пока здесь нет данных</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Вкладка Волонтеры -->
+        <div class="tab-pane" id="volunteers-tab">
+            <div class="admin-header">
+                <h2>Все волонтеры</h2>
+                <div class="filter-controls">
+                    <select id="volunteer-sort" class="filter-select" onchange="sortVolunteers()">
+                        <option value="name">Сортировать по имени</option>
+                        <option value="hours_desc">По часам (убывание)</option>
+                        <option value="hours_asc">По часам (возрастание)</option>
+                    </select>
+                </div>
+            </div>
+
+            {% if all_volunteers %}
+            <table class="table" id="volunteers-table">
+                <thead>
+                    <tr>
+                        <th>№</th>
+                        <th>ФИО</th>
+                        <th>Телефон</th>
+                        <th>Email</th>
+                        <th>Мероприятие</th>
+                        <th>Дата регистрации</th>
+                        <th>Часы</th>
+                    </tr>
+                </thead>
+                <tbody id="volunteers-tbody">
+                    {% for reg in all_volunteers %}
+                    {% set form_data = reg.form_data|from_json %}
+                    {% set hours_record = reg.volunteer_hours|selectattr('event_id', 'equalto', reg.event_id)|first %}
+                    <tr data-name="{{ form_data.full_name if form_data else '' }}" data-hours="{{ hours_record.hours if hours_record else 0 }}">
+                        <td>{{ loop.index }}</td>
+                        <td>{{ form_data.full_name if form_data else '' }}</td>
+                        <td>{{ form_data.phone if form_data else '' }}</td>
+                        <td>{{ form_data.email if form_data else '' }}</td>
+                        <td>{{ reg.event.title if reg.event else '' }}</td>
+                        <td>{{ reg.registered_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                        <td>{{ hours_record.hours if hours_record else 0 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="no-data">
+                <p>Пока здесь нет данных</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Вкладка Статистика -->
+        <div class="tab-pane" id="stats-tab">
+            <h2>Статистика</h2>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value">{{ stats.total_volunteers }}</div>
+                    <div class="stat-label">Волонтеров</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ stats.total_events }}</div>
+                    <div class="stat-label">Всего мероприятий</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ stats.upcoming_events }}</div>
+                    <div class="stat-label">Предстоящих</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ stats.total_hours }}</div>
+                    <div class="stat-label">Часов отработано</div>
+                </div>
+            </div>
+
+            <div class="stats-grid" style="margin-top: 2rem;">
+                <div class="stat-card">
+                    <div class="stat-value">{{ all_volunteers|length }}</div>
+                    <div class="stat-label">Всего регистраций</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.admin-dashboard {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    gap: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.admin-sidebar {
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.admin-sidebar ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.admin-sidebar ul li {
+    margin-bottom: 0.5rem;
+}
+
+.admin-sidebar ul li a {
+    color: var(--color-text);
+    text-decoration: none;
+    padding: 0.75rem 1rem;
+    display: block;
+    border-radius: 5px;
+    transition: all 0.3s;
+    cursor: pointer;
+}
+
+.admin-sidebar ul li a:hover,
+.admin-sidebar ul li a.active {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    color: white;
+}
+
+.admin-content {
+    background: white;
+    border-radius: 10px;
+    padding: 2rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.tab-pane {
+    display: none;
+}
+
+.tab-pane.active {
+    display: block;
+}
+
+.admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.admin-header h2 {
+    color: var(--color-primary-dark);
+    margin: 0;
+}
+
+.filter-controls {
+    display: flex;
+    gap: 1rem;
+}
+
+.filter-select {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 0.95rem;
+    background: white;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    overflow-x: auto;
+    display: block;
+}
+
+.table th {
+    background: var(--color-primary-dark);
+    color: white;
+    padding: 1rem;
+    text-align: left;
+}
+
+.table td {
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+}
+
+.table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.btn-small {
+    padding: 0.3rem 0.8rem;
+    font-size: 0.9rem;
+    margin: 0.2rem;
+}
+
+.no-data {
+    text-align: center;
+    color: var(--color-text-light);
+    padding: 3rem;
+    background: #f8f9fa;
+    border-radius: 5px;
+    margin-top: 1rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+.stat-card {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    color: white;
+    padding: 2rem;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.stat-label {
+    font-size: 1rem;
+    opacity: 0.9;
+}
+
+@media (max-width: 768px) {
+    .admin-dashboard {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .table {
+        font-size: 0.9rem;
+    }
+
+    .table th,
+    .table td {
+        padding: 0.5rem;
+    }
+}
+</style>
+
+<script>
+function showAdminTab(tabName) {
+    event.preventDefault();
+
+    document.querySelectorAll('.admin-sidebar a').forEach(link => {
+        link.classList.remove('active');
+    });
+    event.target.classList.add('active');
+
+    document.querySelectorAll('.tab-pane').forEach(pane => {
+        pane.classList.remove('active');
+    });
+    document.getElementById(`${tabName}-tab`).classList.add('active');
+}
+
+function sortVolunteers() {
+    const sortBy = document.getElementById('volunteer-sort').value;
+    const tbody = document.getElementById('volunteers-tbody');
+    const rows = Array.from(tbody.getElementsByTagName('tr'));
+
+    rows.sort((a, b) => {
+        const nameA = a.dataset.name || '';
+        const nameB = b.dataset.name || '';
+        const hoursA = parseInt(a.dataset.hours) || 0;
+        const hoursB = parseInt(b.dataset.hours) || 0;
+
+        if (sortBy === 'name') {
+            return nameA.localeCompare(nameB);
+        } else if (sortBy === 'hours_desc') {
+            return hoursB - hoursA;
+        } else if (sortBy === 'hours_asc') {
+            return hoursA - hoursB;
+        }
+    });
+
+    // Очищаем и заново добавляем отсортированные строки
+    tbody.innerHTML = '';
+    rows.forEach((row, index) => {
+        // Обновляем номер
+        row.cells[0].textContent = index + 1;
+        tbody.appendChild(row);
+    });
+}
+</script>
+{% endblock %}

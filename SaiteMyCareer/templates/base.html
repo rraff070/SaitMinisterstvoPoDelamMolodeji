@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Молодежная площадка - Министерство по делам молодежи</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* Базовые стили, которые гарантируют одинаковую шапку */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #F8F9FB;
+            color: #333;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Фиксированные стили шапки */
+        header {
+            background-color: #000308 !important;
+            color: white !important;
+            padding: 0.5rem 2rem !important;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1) !important;
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 1000 !important;
+            width: 100% !important;
+            height: 80px !important;
+            display: flex !important;
+            align-items: center !important;
+        }
+
+        .header-container {
+            max-width: 1400px !important;
+            margin: 0 auto !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .logo {
+            display: flex !important;
+            align-items: center !important;
+            height: 100% !important;
+        }
+
+        .logo img {
+            height: 60px !important;
+            width: auto !important;
+            border-radius: 5px !important;
+            max-height: 60px !important;
+        }
+
+        nav {
+            height: 100% !important;
+            display: flex !important;
+            align-items: center !important;
+        }
+
+        nav ul {
+            display: flex !important;
+            list-style: none !important;
+            gap: 2rem !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: 100% !important;
+            align-items: center !important;
+        }
+
+        nav ul li {
+            height: 100% !important;
+            display: flex !important;
+            align-items: center !important;
+        }
+
+        nav ul li a {
+            color: white !important;
+            text-decoration: none !important;
+            font-weight: 500 !important;
+            transition: color 0.3s !important;
+            padding: 0.5rem 1rem !important;
+            border-radius: 5px !important;
+            display: flex !important;
+            align-items: center !important;
+            height: fit-content !important;
+        }
+
+        nav ul li a:hover,
+        nav ul li a.active {
+            color: #D30067 !important;
+            background-color: rgba(255,255,255,0.1) !important;
+        }
+
+        .auth-buttons {
+            display: flex !important;
+            gap: 1rem !important;
+            height: 100% !important;
+            align-items: center !important;
+        }
+
+        .btn {
+            padding: 0.5rem 1.5rem !important;
+            border: none !important;
+            border-radius: 5px !important;
+            cursor: pointer !important;
+            font-weight: 500 !important;
+            transition: all 0.3s !important;
+            text-decoration: none !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            height: 40px !important;
+            line-height: 1 !important;
+            font-size: 1rem !important;
+        }
+
+        .btn-primary {
+            background-color: #D30067 !important;
+            color: white !important;
+        }
+
+        .btn-primary:hover {
+            background-color: #760225 !important;
+            transform: translateY(-2px) !important;
+        }
+
+        .btn-secondary {
+            background-color: #3D6596 !important;
+            color: white !important;
+        }
+
+        .btn-secondary:hover {
+            background-color: #221F6C !important;
+            transform: translateY(-2px) !important;
+        }
+
+        .btn-outline {
+            background-color: transparent !important;
+            border: 2px solid #D30067 !important;
+            color: #D30067 !important;
+        }
+
+        .btn-outline:hover {
+            background-color: #D30067 !important;
+            color: white !important;
+        }
+
+        .btn-block {
+            width: 100%;
+        }
+
+        .btn-small {
+            padding: 0.3rem 0.8rem !important;
+            font-size: 0.85rem !important;
+            height: 32px !important;
+        }
+
+        /* Основной контент */
+        main {
+            max-width: 1400px !important;
+            margin: 2rem auto !important;
+            padding: 0 2rem !important;
+            flex: 1 !important;
+            width: 100% !important;
+        }
+
+        /* Подвал */
+        footer {
+            background-color: #000308 !important;
+            color: white !important;
+            padding: 3rem 2rem 1rem !important;
+            margin-top: 4rem !important;
+            width: 100% !important;
+        }
+
+        .footer-content {
+            max-width: 1400px !important;
+            margin: 0 auto !important;
+            display: grid !important;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)) !important;
+            gap: 2rem !important;
+        }
+
+        .footer-section h3 {
+            color: #D30067 !important;
+            margin-bottom: 1rem !important;
+        }
+
+        .footer-section ul {
+            list-style: none !important;
+            padding: 0 !important;
+        }
+
+        .footer-section ul li {
+            margin-bottom: 0.5rem !important;
+        }
+
+        .footer-section ul li a {
+            color: white !important;
+            text-decoration: none !important;
+            transition: color 0.3s !important;
+        }
+
+        .footer-section ul li a:hover {
+            color: #D30067 !important;
+        }
+
+        .footer-bottom {
+            text-align: center !important;
+            padding-top: 2rem !important;
+            margin-top: 2rem !important;
+            border-top: 1px solid rgba(255,255,255,0.1) !important;
+        }
+
+        /* Уведомления */
+        .flash-message {
+            padding: 1rem !important;
+            margin-bottom: 1rem !important;
+            border-radius: 5px !important;
+            animation: slideIn 0.3s ease-out !important;
+        }
+
+        .flash-success {
+            background-color: #d4edda !important;
+            color: #155724 !important;
+            border: 1px solid #c3e6cb !important;
+        }
+
+        .flash-error {
+            background-color: #f8d7da !important;
+            color: #721c24 !important;
+            border: 1px solid #f5c6cb !important;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* Модальные окна */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+
+        .modal-close:hover {
+            color: #D30067;
+            background-color: rgba(0,0,0,0.05);
+        }
+
+        /* Формы в модальных окнах */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #221F6C;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #D30067;
+        }
+
+        .form-group input[readonly],
+        .form-group textarea[readonly] {
+            background-color: #f8f9fa;
+            cursor: not-allowed;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: normal;
+            cursor: pointer;
+            color: #333 !important;
+        }
+
+        .checkbox-label input[type="checkbox"] {
+            width: auto;
+            margin-right: 0.5rem;
+        }
+
+        .checkbox-label a {
+            color: #D30067;
+            text-decoration: none;
+        }
+
+        .checkbox-label a:hover {
+            text-decoration: underline;
+        }
+
+        .rules-content {
+            margin: 1rem 0;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+
+        .rules-content h3 {
+            color: #221F6C;
+            margin: 1rem 0 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .rules-content h3:first-child {
+            margin-top: 0;
+        }
+
+        .rules-content ul {
+            margin: 0.5rem 0;
+            padding-left: 1.5rem;
+        }
+
+        .rules-content li {
+            margin-bottom: 0.25rem;
+        }
+
+        .phone-input {
+            font-family: monospace;
+            font-size: 1.1rem;
+        }
+
+        .readonly-input {
+            background-color: #f8f9fa;
+            cursor: not-allowed;
+        }
+
+        /* Адаптивность для шапки */
+        @media (max-width: 768px) {
+            header {
+                height: auto !important;
+                min-height: 80px !important;
+                padding: 0.5rem 1rem !important;
+            }
+
+            .header-container {
+                flex-direction: column !important;
+                gap: 0.5rem !important;
+            }
+
+            nav ul {
+                flex-wrap: wrap !important;
+                justify-content: center !important;
+                gap: 0.5rem !important;
+            }
+
+            .auth-buttons {
+                flex-wrap: wrap !important;
+                justify-content: center !important;
+            }
+
+            .logo img {
+                height: 50px !important;
+            }
+
+            .modal-content {
+                padding: 1.5rem;
+                width: 95%;
+            }
+        }
+
+        /* Сброс возможных конфликтующих стилей */
+        .header-container *,
+        header *,
+        nav *,
+        .auth-buttons * {
+            box-sizing: border-box !important;
+        }
+    </style>
+</head>
+<body data-authenticated="{{ 'true' if current_user.is_authenticated else 'false' }}">
+    <header>
+        <div class="header-container">
+            <div class="logo">
+                <img src="{{ url_for('static', filename='images/logo.jpg') }}" alt="Логотип">
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="{{ url_for('index') }}" class="{{ 'active' if request.endpoint == 'index' }}">Главная</a></li>
+                    <li><a href="{{ url_for('events') }}" class="{{ 'active' if request.endpoint == 'events' }}">Мероприятия</a></li>
+                    <li><a href="{{ url_for('about') }}" class="{{ 'active' if request.endpoint == 'about' }}">О нас</a></li>
+                </ul>
+            </nav>
+            <div class="auth-buttons">
+                {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('profile') }}" class="btn btn-secondary">Профиль</a>
+                    {% if current_user.role == 'admin' %}
+                        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-primary">Админ панель</a>
+                    {% endif %}
+                    <a href="{{ url_for('logout') }}" class="btn btn-outline">Выйти</a>
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="btn btn-secondary">Войти</a>
+                    <a href="{{ url_for('register') }}" class="btn btn-primary">Регистрация</a>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <main>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash-message flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>О нас</h3>
+                <p>АНО "Моя карьера КЧР" - организация, помогающая молодежи реализовать свой потенциал.</p>
+            </div>
+            <div class="footer-section">
+                <h3>Контакты</h3>
+                <ul>
+                    <li>Телефон: +7 (8782) 00-00-00</li>
+                    <li>Email: info@mycareer-kchr.ru</li>
+                    <li>Адрес: г. Черкесск, ул. Ленина, 1</li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h3>Социальные сети</h3>
+                <ul>
+                    <li><a href="#">ВКонтакте</a></li>
+                    <li><a href="#">Telegram</a></li>
+                    <li><a href="#">Instagram</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2024 Молодежная площадка. Все права защищены.</p>
+        </div>
+    </footer>
+
+    <!-- Модальное окно для регистрации -->
+    <div id="registration-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeRegistrationModal()">&times;</span>
+            <h2 id="registration-modal-title">Регистрация</h2>
+            <form id="registration-form" onsubmit="submitRegistration(event)">
+                <div id="form-fields-container">
+                    <!-- Динамически заполняется -->
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="agree_rules" name="agreed_to_rules" required>
+                        Я согласен с <a href="#" onclick="showRules(event, 'participant')">правилами</a> *
+                    </label>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block">Зарегистрироваться</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модальное окно с правилами -->
+    <div id="rules-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeRulesModal()">&times;</span>
+            <h2 id="rules-title">Правила</h2>
+            <div id="rules-content" class="rules-content">
+                <!-- Правила загружаются динамически -->
+            </div>
+            <button class="btn btn-primary" onclick="acceptRules()">Принимаю</button>
+        </div>
+    </div>
+
+    <!-- Модальное окно для просмотра изображений -->
+    <div id="image-modal" class="modal" onclick="closeImageModal()">
+        <span class="modal-close" onclick="closeImageModal()">&times;</span>
+        <img class="modal-image" id="expanded-image" style="max-width: 90%; max-height: 90vh; margin: auto; display: block; object-fit: contain;">
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script>
+        // Базовые функции для модальных окон, чтобы они работали на всех страницах
+        function closeRegistrationModal() {
+            document.getElementById('registration-modal')?.classList.remove('active');
+        }
+
+        function closeRulesModal() {
+            document.getElementById('rules-modal')?.classList.remove('active');
+        }
+
+        function closeImageModal() {
+            document.getElementById('image-modal')?.classList.remove('active');
+        }
+
+        function acceptRules() {
+            document.getElementById('agree_rules').checked = true;
+            closeRulesModal();
+        }
+
+        function showRules(event, regType) {
+            event.preventDefault();
+
+            const rulesModal = document.getElementById('rules-modal');
+            const rulesTitle = document.getElementById('rules-title');
+            const rulesContent = document.getElementById('rules-content');
+
+            if (regType === 'volunteer') {
+                rulesTitle.textContent = 'Правила для волонтеров';
+                rulesContent.innerHTML = `
+                    <h3>1. Общие положения</h3>
+                    <p>Волонтер обязан соблюдать правила внутреннего распорядка мероприятий.</p>
+
+                    <h3>2. Обязанности волонтера</h3>
+                    <ul>
+                        <li>Своевременно прибывать на мероприятия</li>
+                        <li>Выполнять поручения организаторов</li>
+                        <li>Соблюдать этические нормы поведения</li>
+                        <li>Бережно относиться к имуществу</li>
+                    </ul>
+
+                    <h3>3. Права волонтера</h3>
+                    <ul>
+                        <li>Получать волонтерские часы за участие</li>
+                        <li>Получать необходимую информацию для выполнения задач</li>
+                        <li>Вносить предложения по улучшению организации</li>
+                    </ul>
+
+                    <h3>4. Ответственность</h3>
+                    <p>За нарушение правил волонтер может быть лишен часов или отстранен от участия.</p>
+                `;
+            } else {
+                rulesTitle.textContent = 'Правила для участников';
+                rulesContent.innerHTML = `
+                    <h3>1. Общие положения</h3>
+                    <p>Участник обязан соблюдать правила поведения на мероприятиях.</p>
+
+                    <h3>2. Обязанности участника</h3>
+                    <ul>
+                        <li>Своевременно регистрироваться на мероприятия</li>
+                        <li>Соблюдать расписание мероприятий</li>
+                        <li>Уважительно относиться к другим участникам и организаторам</li>
+                    </ul>
+
+                    <h3>3. Права участника</h3>
+                    <ul>
+                        <li>Получать полную информацию о мероприятии</li>
+                        <li>Участвовать в программе мероприятия</li>
+                        <li>Оставлять отзывы и предложения</li>
+                    </ul>
+                `;
+            }
+
+            rulesModal.classList.add('active');
+        }
+
+        function submitRegistration(event) {
+            event.preventDefault();
+            // Базовая заглушка, реальная функция будет переопределена в event_detail.html
+            alert('Функция регистрации доступна на странице мероприятия');
+        }
+
+        // Закрытие модальных окон по клику вне их
+        window.onclick = function(event) {
+            const regModal = document.getElementById('registration-modal');
+            const rulesModal = document.getElementById('rules-modal');
+            const imageModal = document.getElementById('image-modal');
+
+            if (event.target == regModal) {
+                closeRegistrationModal();
+            }
+            if (event.target == rulesModal) {
+                closeRulesModal();
+            }
+            if (event.target == imageModal) {
+                closeImageModal();
+            }
+        }
+
+        // Добавляем поддержку клавиши Escape
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeRegistrationModal();
+                closeRulesModal();
+                closeImageModal();
+            }
+        });
+    </script>
+</body>
+</html>

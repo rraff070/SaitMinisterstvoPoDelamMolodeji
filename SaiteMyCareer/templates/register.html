@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <h2>Регистрация волонтера</h2>
+        
+        <form method="POST" action="{{ url_for('register') }}" class="auth-form" id="register-form">
+            <div class="form-group">
+                <label for="last_name">Фамилия *</label>
+                <input type="text" id="last_name" name="last_name" required>
+            </div>
+
+            <div class="form-group">
+                <label for="first_name">Имя *</label>
+                <input type="text" id="first_name" name="first_name" required>
+            </div>
+
+            <div class="form-group">
+                <label for="middle_name">Отчество *</label>
+                <input type="text" id="middle_name" name="middle_name" required>
+            </div>
+
+            <div class="form-group">
+                <label for="username">Номер телефона *</label>
+                <input type="text" id="username" name="username" required
+                       placeholder="+7(999)999-99-99" class="phone-input">
+                <small class="form-text">Введите номер в формате: +7(999)999-99-99</small>
+            </div>
+
+            <div class="form-group">
+                <label for="birth_date">Дата рождения *</label>
+                <input type="date" id="birth_date" name="birth_date" required>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email">
+            </div>
+
+            <div class="form-group">
+                <label for="experience">Опыт волонтерства</label>
+                <textarea id="experience" name="experience" rows="3" placeholder="Расскажите о своем опыте..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="secret_word">Кодовое слово *</label>
+                <input type="text" id="secret_word" name="secret_word" required
+                       placeholder="Слово для восстановления пароля">
+                <small class="form-text">Запомните это слово, оно понадобится для восстановления пароля</small>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Пароль *</label>
+                <input type="password" id="password" name="password" required minlength="4">
+                <small class="form-text">Минимум 4 символа</small>
+            </div>
+
+            <div class="form-group">
+                <label for="password_confirm">Повторите пароль *</label>
+                <input type="password" id="password_confirm" name="password_confirm" required minlength="4">
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="agree_rules" name="agree_rules" required>
+                    Я согласен с <a href="#" onclick="showRules(event)">Основными правилами для волонтера</a> *
+                </label>
+            </div>
+
+            <div id="password-error" class="error-message" style="display: none; color: red; margin-bottom: 1rem;">
+                Пароли не совпадают
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block" id="submit-btn">Зарегистрироваться</button>
+        </form>
+
+        <div class="auth-links">
+            <p>Уже есть аккаунт? <a href="{{ url_for('login') }}">Войти</a></p>
+            <p><a href="{{ url_for('forgot_password') }}">Забыли пароль?</a></p>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно с правилами -->
+<div id="rules-modal" class="modal">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeRulesModal()">&times;</span>
+        <h2>Основные правила для волонтера</h2>
+        <div class="rules-content">
+            <h3>1. Общие положения</h3>
+            <p>Волонтер обязан соблюдать правила внутреннего распорядка мероприятий.</p>
+
+            <h3>2. Обязанности волонтера</h3>
+            <ul>
+                <li>Своевременно прибывать на мероприятия</li>
+                <li>Выполнять поручения организаторов</li>
+                <li>Соблюдать этические нормы поведения</li>
+                <li>Бережно относиться к имуществу</li>
+            </ul>
+
+            <h3>3. Права волонтера</h3>
+            <ul>
+                <li>Получать волонтерские часы за участие</li>
+                <li>Получать необходимую информацию для выполнения задач</li>
+                <li>Вносить предложения по улучшению организации</li>
+            </ul>
+
+            <h3>4. Ответственность</h3>
+            <p>За нарушение правил волонтер может быть лишен часов или отстранен от участия.</p>
+        </div>
+        <button class="btn btn-primary" onclick="acceptRules()">Я принимаю правила</button>
+    </div>
+</div>
+
+<style>
+.auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 200px);
+    padding: 2rem;
+}
+
+.auth-card {
+    background: var(--color-white);
+    border-radius: 10px;
+    padding: 2rem;
+    box-shadow: var(--shadow);
+    width: 100%;
+    max-width: 600px;
+}
+
+.auth-card h2 {
+    color: var(--color-primary-dark);
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.auth-form .form-group {
+    margin-bottom: 1rem;
+}
+
+.auth-form label {
+    display: block;
+    margin-bottom: 0.3rem;
+    color: var(--color-text);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.auth-form input,
+.auth-form textarea,
+.auth-form select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 0.95rem;
+    transition: border-color 0.3s;
+}
+
+.auth-form input:focus,
+.auth-form textarea:focus,
+.auth-form select:focus {
+    outline: none;
+    border-color: var(--color-accent);
+}
+
+.auth-form textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.phone-input {
+    font-family: monospace;
+    font-size: 1.1rem;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: normal;
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+    margin-right: 0.5rem;
+}
+
+.checkbox-label a {
+    color: var(--color-accent);
+    text-decoration: none;
+}
+
+.checkbox-label a:hover {
+    text-decoration: underline;
+}
+
+.form-text {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.85rem;
+    color: var(--color-text-light);
+}
+
+.btn-block {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1.1rem;
+    margin-top: 1rem;
+}
+
+.auth-links {
+    margin-top: 1.5rem;
+    text-align: center;
+}
+
+.auth-links a {
+    color: var(--color-accent);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.auth-links a:hover {
+    text-decoration: underline;
+}
+
+.auth-links p {
+    margin: 0.5rem 0;
+}
+
+/* Модальное окно с правилами */
+#rules-modal .modal-content {
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.rules-content {
+    margin: 1rem 0;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 5px;
+}
+
+.rules-content h3 {
+    color: var(--color-primary-dark);
+    margin: 1rem 0 0.5rem;
+    font-size: 1.1rem;
+}
+
+.rules-content h3:first-child {
+    margin-top: 0;
+}
+
+.rules-content ul {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+}
+
+.rules-content li {
+    margin-bottom: 0.25rem;
+}
+
+.error-message {
+    color: #dc3545;
+    font-size: 0.9rem;
+    margin-top: 0.25rem;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .auth-container {
+        padding: 1rem;
+    }
+
+    .auth-card {
+        padding: 1.5rem;
+    }
+}
+</style>
+
+<script>
+// Маска для телефона
+document.getElementById('username').addEventListener('input', function(e) {
+    let x = e.target.value.replace(/\D/g, '').match(/(\d{0,1})(\d{0,3})(\d{0,3})(\d{0,2})(\d{0,2})/);
+    e.target.value = !x[2] ? x[1] : '+7(' + x[2] + ')' + (x[3] ? x[3] : '') + (x[4] ? '-' + x[4] : '') + (x[5] ? '-' + x[5] : '');
+});
+
+// Проверка совпадения паролей
+document.addEventListener('DOMContentLoaded', function() {
+    const password = document.getElementById('password');
+    const passwordConfirm = document.getElementById('password_confirm');
+    const submitBtn = document.getElementById('submit-btn');
+    const errorDiv = document.getElementById('password-error');
+    const form = document.getElementById('register-form');
+
+    function checkPasswords() {
+        if (password.value && passwordConfirm.value) {
+            if (password.value !== passwordConfirm.value) {
+                errorDiv.style.display = 'block';
+                submitBtn.disabled = true;
+                return false;
+            } else {
+                errorDiv.style.display = 'none';
+                submitBtn.disabled = false;
+                return true;
+            }
+        } else {
+            errorDiv.style.display = 'none';
+            submitBtn.disabled = false;
+            return true;
+        }
+    }
+
+    password.addEventListener('input', checkPasswords);
+    passwordConfirm.addEventListener('input', checkPasswords);
+
+    form.addEventListener('submit', function(e) {
+        if (password.value !== passwordConfirm.value) {
+            e.preventDefault();
+            errorDiv.style.display = 'block';
+            passwordConfirm.focus();
+        }
+    });
+});
+
+// Функции для модального окна с правилами
+function showRules(event) {
+    event.preventDefault();
+    document.getElementById('rules-modal').classList.add('active');
+}
+
+function closeRulesModal() {
+    document.getElementById('rules-modal').classList.remove('active');
+}
+
+function acceptRules() {
+    document.getElementById('agree_rules').checked = true;
+    closeRulesModal();
+}
+
+// Закрытие модального окна по клику вне его
+window.onclick = function(event) {
+    const modal = document.getElementById('rules-modal');
+    if (event.target == modal) {
+        closeRulesModal();
+    }
+}
+</script>
+{% endblock %}

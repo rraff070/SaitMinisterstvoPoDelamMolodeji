@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero">
+    <h1>Присоединяйся к нам!</h1>
+    <p>Стань частью молодежного движения, участвуй в мероприятиях, помогай другим и развивайся вместе с нами</p>
+</section>
+
+<section class="opportunities">
+    <div class="card">
+        <div class="icon">🎯</div>
+        <h3>Для участников</h3>
+        <p>Участвуй в увлекательных мероприятиях, находи новых друзей, развивай свои навыки и получай незабываемые впечатления</p>
+    </div>
+    <div class="card">
+        <div class="icon">🤝</div>
+        <h3>Для волонтеров</h3>
+        <p>Помогай в организации мероприятий, получай волонтерские часы, опыт и благодарность от организаторов</p>
+    </div>
+    <div class="card">
+        <div class="icon">🚀</div>
+        <h3>Для активистов</h3>
+        <p>Реализуй свои проекты, становись лидером, получай поддержку от министерства и развивай молодежную политику</p>
+    </div>
+</section>
+
+<section class="headlines">
+    <h2>Будь в центре событий!</h2>
+    <p>Более 100 мероприятий ежегодно • Тысячи участников • Десятки волонтерских проектов</p>
+</section>
+
+{% if upcoming_events %}
+<section class="upcoming-events">
+    <h2>Ближайшие мероприятия</h2>
+    <div class="events-grid">
+        {% for event in upcoming_events %}
+        <div class="event-card" onclick="location.href='{{ url_for('event_detail', event_id=event.id) }}'">
+            {% if event.main_photo %}
+            <img src="{{ url_for('static', filename='uploads/' + event.main_photo) }}"
+                 alt="{{ event.title }}"
+                 class="event-image">
+            {% else %}
+            <img src="{{ url_for('static', filename='images/placeholder.jpg') }}"
+                 alt="Placeholder"
+                 class="event-image">
+            {% endif %}
+
+            <div class="event-content">
+                <h3 class="event-title">{{ event.title }}</h3>
+                <div class="event-date">
+                    📅 {{ event.get_event_dates_string() }}
+                </div>
+                <div class="event-location">
+                    📍 {{ event.location }}
+                </div>
+                <p class="event-description">{{ event.description[:100] }}...</p>
+                <div class="event-stats">
+                    <span class="stat">👥 {{ event.get_participant_count() }} уч.</span>
+                    <span class="stat">🤝 {{ event.get_volunteer_count() }} вол.</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="view-all">
+        <a href="{{ url_for('events') }}" class="btn btn-primary">Все мероприятия</a>
+    </div>
+</section>
+{% endif %}
+
+
+{% endblock %}

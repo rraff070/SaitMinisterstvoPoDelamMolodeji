@@ -1,0 +1,621 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="event-detail-container">
+    <div class="event-detail-header">
+        <h1>{{ event.title }}</h1>
+        <div class="header-actions">
+            <a href="{{ url_for('admin_event_edit', event_id=event.id) }}" class="btn btn-secondary">
+                Редактировать
+            </a>
+            <a href="{{ url_for('generate_event_report', event_id=event.id) }}" class="btn btn-primary">
+                Скачать отчет (Word)
+            </a>
+            {% if event.is_completed %}
+            <button class="btn btn-warning" onclick="revokeEvent({{ event.id }})">
+                Отозвать мероприятие
+            </button>
+            {% else %}
+            <button class="btn btn-success" onclick="completeEvent({{ event.id }})">
+                Подтвердить завершение
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="event-info-grid">
+        <div class="info-card">
+            <h3>Информация о мероприятии</h3>
+            <div class="info-item">
+                <span class="info-label">Место проведения:</span>
+                <span class="info-value">{{ event.location }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Даты проведения:</span>
+                <span class="info-value">{{ event.get_event_dates_string() }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Даты регистрации:</span>
+                <span class="info-value">{{ event.get_registration_dates_string() }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Регистрация:</span>
+                <span class="info-value">
+                    {% if event.use_volunteer_template and event.use_participant_template %}
+                        Волонтеры и участники
+                    {% elif event.use_volunteer_template %}
+                        Только волонтеры
+                    {% elif event.use_participant_template %}
+                        Только участники
+                    {% else %}
+                        Закрыта
+                    {% endif %}
+                </span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Статус:</span>
+                <span class="info-value {% if event.is_completed %}completed{% endif %}">
+                    {% if event.is_completed %}
+                        Завершено
+                    {% elif event.is_event_past() %}
+                        Завершено (по дате)
+                    {% elif event.is_event_active() %}
+                        Идет сейчас
+                    {% else %}
+                        Предстоит
+                    {% endif %}
+                </span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Часы по умолчанию:</span>
+                <span class="info-value">{{ event.default_hours }}</span>
+            </div>
+        </div>
+
+        {% if event.budget_checklist %}
+        {% set budget = event.budget_checklist|from_json %}
+        {% if budget %}
+        <div class="info-card">
+            <h3>Бюджет мероприятия</h3>
+            <div class="budget-summary">
+                <table class="table table-compact">
+                    <thead>
+                        <tr>
+                            <th>Наименование</th>
+                            <th>Кол-во</th>
+                            <th>Цена</th>
+                            <th>Сумма</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% set ns = namespace(total=0) %}
+                        {% for item in budget %}
+                        {% set sum = item.quantity * item.price %}
+                        {% set ns.total = ns.total + sum %}
+                        <tr>
+                            <td>{{ item.name }}</td>
+                            <td>{{ item.quantity }}</td>
+                            <td>{{ item.price }} ₽</td>
+                            <td>{{ sum }} ₽</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="3"><strong>Итого:</strong></td>
+                            <td><strong>{{ ns.total }} ₽</strong></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+        {% endif %}
+    </div>
+
+    <div class="event-description">
+        <h3>Описание</h3>
+        <p>{{ event.description }}</p>
+    </div>
+
+    {% if event.files %}
+    {% set materials = event.files|from_json %}
+    {% if materials %}
+    <div class="event-materials">
+        <h3>Материалы мероприятия</h3>
+        <div class="materials-list">
+            {% for material in materials %}
+            <div class="material-item">
+                <span class="material-icon">📄</span>
+                <span class="material-name">{{ material.name }}</span>
+                <a href="{{ url_for('static', filename='uploads/' + material.file) }}" class="btn btn-secondary btn-small" download>
+                    Скачать
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <div class="tabs-container">
+        <div class="tabs">
+            <button class="tab-btn active" onclick="showTab('participants')">
+                Участники ({{ participants|length }})
+            </button>
+            <button class="tab-btn" onclick="showTab('volunteers')">
+                Волонтеры ({{ volunteers|length }})
+            </button>
+        </div>
+
+        <div class="tab-pane active" id="participants-tab">
+            <div class="table-header">
+                <h3>Список участников</h3>
+                <a href="{{ url_for('export_event_participants_word', event_id=event.id) }}" class="btn btn-primary">
+                    Скачать в Word
+                </a>
+            </div>
+
+            {% if participants %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>№</th>
+                        <th>ФИО</th>
+                        <th>Телефон</th>
+                        <th>Email</th>
+                        <th>Дата рождения</th>
+                        <th>Дата регистрации</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for reg in participants %}
+                    {% set form_data = reg.form_data|from_json %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ form_data.full_name if form_data else reg.user.get_full_name() if reg.user else '' }}</td>
+                        <td>{{ form_data.phone if form_data else reg.user.phone if reg.user else '' }}</td>
+                        <td>{{ form_data.email if form_data else reg.user.email if reg.user else '' }}</td>
+                        <td>{{ form_data.birth_date if form_data else reg.user.birth_date.strftime('%d.%m.%Y') if reg.user and reg.user.birth_date else '' }}</td>
+                        <td>{{ reg.registered_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="no-data">
+                <p>Пока здесь нет данных</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="tab-pane" id="volunteers-tab">
+            <div class="table-header">
+                <h3>Список волонтеров</h3>
+                <div class="header-actions">
+                    <a href="{{ url_for('export_event_volunteers_word', event_id=event.id) }}" class="btn btn-primary">
+                        Скачать в Word
+                    </a>
+                </div>
+            </div>
+
+            {% if volunteers %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>№</th>
+                        <th>ФИО</th>
+                        <th>Телефон</th>
+                        <th>Email</th>
+                        <th>Дата рождения</th>
+                        <th>Опыт</th>
+                        <th>Дата регистрации</th>
+                        <th>Часы</th>
+                        <th>Штраф</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in volunteers %}
+                    {% set reg = item.registration %}
+                    {% set form_data = reg.form_data|from_json %}
+                    {% set hours = item.hours %}
+                    <tr data-registration-id="{{ reg.id }}">
+                        <td>{{ loop.index }}</td>
+                        <td>{{ form_data.full_name if form_data else reg.user.get_full_name() if reg.user else '' }}</td>
+                        <td>{{ form_data.phone if form_data else reg.user.phone if reg.user else '' }}</td>
+                        <td>{{ form_data.email if form_data else reg.user.email if reg.user else '' }}</td>
+                        <td>{{ form_data.birth_date if form_data else reg.user.birth_date.strftime('%d.%m.%Y') if reg.user and reg.user.birth_date else '' }}</td>
+                        <td>{{ form_data.experience if form_data else reg.user.experience if reg.user else '' }}</td>
+                        <td>{{ reg.registered_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                        <td>
+                            <input type="number" id="hours-{{ reg.id }}" value="{{ hours.hours if hours else event.default_hours }}"
+                                   min="0" class="hours-input" step="1">
+                        </td>
+                        <td>
+                            <input type="number" id="fine-{{ reg.id }}" value="{{ hours.fine if hours else 0 }}"
+                                   min="0" class="hours-input" step="1" placeholder="Штраф">
+                        </td>
+                        <td>
+                            <button class="btn btn-success btn-small" onclick="applyHours({{ reg.id }}, {{ event.id }})">
+                                Применить
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="no-data">
+                <p>Пока здесь нет данных</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.event-detail-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.event-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--color-accent);
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.event-detail-header h1 {
+    color: var(--color-primary-dark);
+    font-size: 2rem;
+}
+
+.header-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.event-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.info-card {
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.info-card h3 {
+    color: var(--color-primary-dark);
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #eee;
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    color: var(--color-text-light);
+    font-weight: 500;
+}
+
+.info-value {
+    font-weight: 600;
+    color: var(--color-primary-dark);
+}
+
+.info-value.completed {
+    color: #28a745;
+}
+
+.event-description {
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.event-description h3 {
+    color: var(--color-primary-dark);
+    margin-bottom: 1rem;
+}
+
+.event-materials {
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.event-materials h3 {
+    color: var(--color-primary-dark);
+    margin-bottom: 1rem;
+}
+
+.materials-list {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.material-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 5px;
+}
+
+.material-icon {
+    font-size: 1.2rem;
+    margin-right: 1rem;
+}
+
+.material-name {
+    flex: 1;
+    color: var(--color-text);
+}
+
+.tabs-container {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.tabs {
+    display: flex;
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    flex-wrap: wrap;
+}
+
+.tab-btn {
+    padding: 1rem 2rem;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--color-text-light);
+    transition: all 0.3s;
+}
+
+.tab-btn:hover {
+    background: #e9ecef;
+}
+
+.tab-btn.active {
+    background: white;
+    color: var(--color-accent);
+    border-bottom: 2px solid var(--color-accent);
+}
+
+.tab-pane {
+    display: none;
+    padding: 1.5rem;
+}
+
+.tab-pane.active {
+    display: block;
+}
+
+.table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.table-header h3 {
+    color: var(--color-primary-dark);
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    overflow-x: auto;
+    display: block;
+}
+
+.table th {
+    background: var(--color-primary-dark);
+    color: white;
+    padding: 1rem;
+    text-align: left;
+    font-weight: 500;
+}
+
+.table td {
+    padding: 1rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.table-compact th,
+.table-compact td {
+    padding: 0.5rem;
+}
+
+.hours-input {
+    width: 80px;
+    padding: 0.3rem;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+}
+
+.btn-small {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.85rem;
+}
+
+.btn-success {
+    background: #28a745;
+    color: white;
+}
+
+.btn-success:hover {
+    background: #218838;
+}
+
+.btn-warning {
+    background: #ffc107;
+    color: #212529;
+}
+
+.btn-warning:hover {
+    background: #e0a800;
+}
+
+.no-data {
+    text-align: center;
+    color: var(--color-text-light);
+    padding: 3rem;
+    background: #f8f9fa;
+    border-radius: 5px;
+    margin-top: 1rem;
+}
+
+@media (max-width: 768px) {
+    .event-detail-header {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .header-actions {
+        width: 100%;
+        flex-direction: column;
+    }
+
+    .tabs {
+        flex-direction: column;
+    }
+
+    .tab-btn {
+        width: 100%;
+        text-align: left;
+    }
+
+    .table {
+        font-size: 0.9rem;
+    }
+
+    .table th,
+    .table td {
+        padding: 0.5rem;
+    }
+}
+</style>
+
+<script>
+function showTab(tabName) {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    document.querySelectorAll('.tab-pane').forEach(pane => {
+        pane.classList.remove('active');
+    });
+
+    event.target.classList.add('active');
+    document.getElementById(`${tabName}-tab`).classList.add('active');
+}
+
+function applyHours(registrationId, eventId) {
+    const hours = document.getElementById(`hours-${registrationId}`).value;
+    const fine = document.getElementById(`fine-${registrationId}`).value;
+
+    // Если есть штраф, вычитаем его из часов
+    let finalHours = parseInt(hours) || 0;
+    if (fine && parseInt(fine) > 0) {
+        finalHours = finalHours - parseInt(fine);
+    }
+
+    const comment = fine ? `Штраф: ${fine} часов` : '';
+
+    fetch('/admin/volunteer/hours', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            registration_id: registrationId,
+            event_id: eventId,
+            hours: finalHours,
+            fine: parseInt(fine) || 0,
+            status: 'approved',
+            comment: comment
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Часы успешно обновлены');
+            location.reload();
+        } else {
+            alert('Ошибка при обновлении часов');
+        }
+    });
+}
+
+function completeEvent(eventId) {
+    if (confirm('Подтвердить завершение мероприятия? Часы будут начислены волонтерам согласно указанным значениям.')) {
+        fetch(`/admin/event/${eventId}/complete`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Мероприятие завершено, часы начислены');
+                location.reload();
+            } else {
+                alert('Ошибка при завершении мероприятия');
+            }
+        });
+    }
+}
+
+function revokeEvent(eventId) {
+    if (confirm('Отозвать подтверждение мероприятия? Это позволит редактировать часы заново.')) {
+        fetch(`/admin/event/${eventId}/revoke`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Подтверждение мероприятия отозвано');
+                location.reload();
+            } else {
+                alert('Ошибка при отзыве мероприятия');
+            }
+        });
+    }
+}
+</script>
+{% endblock %}

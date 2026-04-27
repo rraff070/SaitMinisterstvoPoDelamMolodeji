@@ -1,0 +1,619 @@
+<!-- templates/review_modal.html -->
+<div id="review-modal" class="modal">
+    <div class="modal-content">
+        <span class="modal-close" onclick="modalManager.close('review-modal')">&times;</span>
+        <h2>Оставить отзыв о мероприятии</h2>
+
+        <div class="event-info" id="review-event-info">
+            <!-- Информация о мероприятии будет вставлена динамически -->
+        </div>
+
+        <form id="review-form" onsubmit="submitReview(event)">
+            <input type="hidden" id="review-event-id" name="event_id">
+
+            <div class="form-group">
+                <label>Оценка мероприятия:</label>
+                <div class="rating-input">
+                    <input type="radio" name="rating" value="5" id="star5" required>
+                    <label for="star5" title="5 звезд">★</label>
+
+                    <input type="radio" name="rating" value="4" id="star4">
+                    <label for="star4" title="4 звезды">★</label>
+
+                    <input type="radio" name="rating" value="3" id="star3">
+                    <label for="star3" title="3 звезды">★</label>
+
+                    <input type="radio" name="rating" value="2" id="star2">
+                    <label for="star2" title="2 звезды">★</label>
+
+                    <input type="radio" name="rating" value="1" id="star1">
+                    <label for="star1" title="1 звезда">★</label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="review-text">Ваш отзыв:</label>
+                <textarea id="review-text" name="text" rows="5" placeholder="Поделитесь своими впечатлениями о мероприятии..." required></textarea>
+                <small class="form-text">Расскажите, что понравилось, а что можно улучшить</small>
+            </div>
+
+            <div class="form-group">
+                <label for="review-photo">Прикрепить фото (необязательно)</label>
+                <input type="file" id="review-photo" name="photo" accept="image/*">
+                <small class="form-text">Максимальный размер файла: 5 MB</small>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Отправить отзыв</button>
+                <button type="button" class="btn btn-outline" onclick="modalManager.close('review-modal')">Отмена</button>
+            </div>
+        </form>
+
+        <div class="review-guidelines">
+            <h3>Правила оставления отзывов:</h3>
+            <ul>
+                <li>Будьте вежливы и конструктивны</li>
+                <li>Не используйте ненормативную лексику</li>
+                <li>Не размещайте рекламу и спам</li>
+                <li>Ваш отзыв поможет улучшить качество мероприятий</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для просмотра отзывов -->
+<div id="view-reviews-modal" class="modal">
+    <div class="modal-content modal-lg">
+        <span class="modal-close" onclick="modalManager.close('view-reviews-modal')">&times;</span>
+        <h2>Отзывы о мероприятии</h2>
+
+        <div class="reviews-summary">
+            <div class="average-rating">
+                <span class="rating-number" id="avg-rating">0.0</span>
+                <div class="rating-stars" id="avg-stars">
+                    <!-- Звезды будут вставлены динамически -->
+                </div>
+                <span class="reviews-count" id="reviews-count">0 отзывов</span>
+            </div>
+        </div>
+
+        <div class="reviews-list" id="reviews-list">
+            <!-- Список отзывов будет вставлен динамически -->
+        </div>
+    </div>
+</div>
+
+<style>
+/* Стили для модального окна отзывов */
+#review-modal .modal-content,
+#view-reviews-modal .modal-content {
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+#view-reviews-modal .modal-content {
+    max-width: 800px;
+}
+
+/* Стили для рейтинга */
+.rating-input {
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+    gap: 0.25rem;
+}
+
+.rating-input input {
+    display: none;
+}
+
+.rating-input label {
+    font-size: 2.5rem;
+    color: #ddd;
+    cursor: pointer;
+    transition: all 0.2s;
+    line-height: 1;
+}
+
+.rating-input label:hover,
+.rating-input label:hover ~ label {
+    color: #ffd700;
+    transform: scale(1.1);
+}
+
+.rating-input input:checked ~ label {
+    color: #ffd700;
+}
+
+.rating-input input:checked ~ label:hover {
+    transform: scale(1.1);
+}
+
+/* Стили для информации о мероприятии */
+.event-info {
+    background: linear-gradient(135deg, var(--color-primary-light), var(--color-primary));
+    color: white;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.event-info h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.2rem;
+}
+
+.event-info p {
+    margin: 0.25rem 0;
+    font-size: 0.95rem;
+    opacity: 0.9;
+}
+
+/* Стили для текста помощи */
+.form-text {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.85rem;
+    color: var(--color-text-light);
+}
+
+/* Стили для правил */
+.review-guidelines {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.review-guidelines h3 {
+    color: var(--color-primary-dark);
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+}
+
+.review-guidelines ul {
+    margin: 0;
+    padding-left: 1.5rem;
+    color: var(--color-text-light);
+}
+
+.review-guidelines li {
+    margin-bottom: 0.25rem;
+}
+
+/* Стили для кнопок */
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.form-actions button {
+    flex: 1;
+}
+
+/* Стили для сводки отзывов */
+.reviews-summary {
+    background: linear-gradient(135deg, var(--color-primary-dark), var(--color-secondary));
+    color: white;
+    padding: 2rem;
+    border-radius: 10px;
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.average-rating {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.rating-number {
+    font-size: 4rem;
+    font-weight: bold;
+    line-height: 1;
+}
+
+.rating-stars {
+    font-size: 2rem;
+    color: #ffd700;
+    letter-spacing: 5px;
+}
+
+.reviews-count {
+    font-size: 1rem;
+    opacity: 0.9;
+}
+
+/* Стили для карточки отзыва */
+.review-card {
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: var(--shadow);
+    transition: transform 0.2s;
+}
+
+.review-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+}
+
+.review-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.reviewer-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.reviewer-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.reviewer-name {
+    font-weight: 600;
+    color: var(--color-primary-dark);
+}
+
+.review-rating {
+    color: #ffd700;
+    font-size: 1.2rem;
+    letter-spacing: 2px;
+}
+
+.review-date {
+    color: var(--color-text-light);
+    font-size: 0.85rem;
+}
+
+.review-text {
+    color: var(--color-text);
+    line-height: 1.6;
+    margin-bottom: 1rem;
+    white-space: pre-line;
+}
+
+.review-photo {
+    margin-top: 1rem;
+    max-width: 100%;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.review-photo:hover {
+    opacity: 0.9;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .rating-input label {
+        font-size: 2rem;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .review-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .rating-number {
+        font-size: 3rem;
+    }
+
+    .rating-stars {
+        font-size: 1.5rem;
+    }
+}
+
+/* Анимации */
+@keyframes slideIn {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.review-card {
+    animation: slideIn 0.3s ease-out;
+}
+
+/* Индикатор загрузки */
+.loading-spinner {
+    display: inline-block;
+    width: 40px;
+    height: 40px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid var(--color-accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Уведомления */
+.review-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 1rem 1.5rem;
+    background: white;
+    border-radius: 5px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+    animation: slideInRight 0.3s ease-out;
+    z-index: 3000;
+}
+
+.review-notification.success {
+    border-left: 4px solid #28a745;
+}
+
+.review-notification.error {
+    border-left: 4px solid #dc3545;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+</style>
+
+<script>
+// Глобальная переменная для хранения текущего eventId
+let currentReviewEventId = null;
+
+// Функция открытия модального окна для отзыва
+function openReviewModal(eventId, eventTitle, eventDate) {
+    currentReviewEventId = eventId;
+
+    // Заполняем информацию о мероприятии
+    const eventInfo = document.getElementById('review-event-info');
+    eventInfo.innerHTML = `
+        <h3>${eventTitle}</h3>
+        <p>Дата проведения: ${eventDate}</p>
+    `;
+
+    document.getElementById('review-event-id').value = eventId;
+
+    // Открываем модальное окно
+    modalManager.open('review-modal');
+}
+
+// Функция отправки отзыва
+async function submitReview(event) {
+    event.preventDefault();
+
+    const form = document.getElementById('review-form');
+    const formData = new FormData(form);
+    const eventId = document.getElementById('review-event-id').value;
+
+    // Показываем индикатор загрузки
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Отправка...';
+    submitBtn.disabled = true;
+
+    try {
+        let response;
+        let data;
+
+        // Если есть фото, отправляем как FormData, иначе как JSON
+        if (formData.get('photo').size > 0) {
+            response = await fetch(`/event/${eventId}/review`, {
+                method: 'POST',
+                body: formData
+            });
+            data = await response.json();
+        } else {
+            // Удаляем photo из FormData если файл не выбран
+            formData.delete('photo');
+
+            // Преобразуем в JSON
+            const jsonData = {};
+            formData.forEach((value, key) => {
+                jsonData[key] = value;
+            });
+
+            response = await fetch(`/event/${eventId}/review`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(jsonData)
+            });
+            data = await response.json();
+        }
+
+        if (response.ok) {
+            showNotification('Спасибо за ваш отзыв!', 'success');
+            modalManager.close('review-modal');
+            form.reset();
+        } else {
+            showNotification(data.error || 'Ошибка при отправке отзыва', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showNotification('Ошибка соединения', 'error');
+    } finally {
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    }
+}
+
+// Функция просмотра отзывов о мероприятии
+async function viewReviews(eventId) {
+    try {
+        const response = await fetch(`/api/event/${eventId}/reviews`);
+        const data = await response.json();
+
+        if (response.ok) {
+            displayReviews(data);
+            modalManager.open('view-reviews-modal');
+        } else {
+            showNotification('Ошибка при загрузке отзывов', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showNotification('Ошибка соединения', 'error');
+    }
+}
+
+// Функция отображения отзывов
+function displayReviews(data) {
+    // Обновляем сводку
+    document.getElementById('avg-rating').textContent = data.average_rating.toFixed(1);
+    document.getElementById('reviews-count').textContent =
+        `${data.reviews.length} ${getReviewWord(data.reviews.length)}`;
+
+    // Отображаем звезды среднего рейтинга
+    const avgStars = document.getElementById('avg-stars');
+    avgStars.innerHTML = getStarsHTML(data.average_rating);
+
+    // Отображаем список отзывов
+    const reviewsList = document.getElementById('reviews-list');
+
+    if (data.reviews.length === 0) {
+        reviewsList.innerHTML = '<p class="no-reviews">Пока нет отзывов о этом мероприятии</p>';
+        return;
+    }
+
+    reviewsList.innerHTML = data.reviews.map(review => `
+        <div class="review-card">
+            <div class="review-header">
+                <div class="reviewer-info">
+                    <img src="${review.avatar || '/static/images/default-avatar.jpg'}"
+                         alt="${review.author}"
+                         class="reviewer-avatar"
+                         onerror="this.src='/static/images/default-avatar.jpg'">
+                    <span class="reviewer-name">${review.author}</span>
+                </div>
+                <div class="review-rating">
+                    ${getStarsHTML(review.rating)}
+                </div>
+            </div>
+            <div class="review-date">${review.date}</div>
+            <div class="review-text">${review.text}</div>
+            ${review.photo ? `<img src="${review.photo}" alt="Фото отзыва" class="review-photo" onclick="window.open(this.src)">` : ''}
+        </div>
+    `).join('');
+}
+
+// Вспомогательная функция для склонения слова "отзыв"
+function getReviewWord(count) {
+    if (count % 10 === 1 && count % 100 !== 11) {
+        return 'отзыв';
+    } else if ([2, 3, 4].includes(count % 10) && ![12, 13, 14].includes(count % 100)) {
+        return 'отзыва';
+    } else {
+        return 'отзывов';
+    }
+}
+
+// Вспомогательная функция для отображения звезд
+function getStarsHTML(rating) {
+    const fullStars = Math.floor(rating);
+    const halfStar = rating % 1 >= 0.5;
+    const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
+
+    let stars = '';
+    stars += '★'.repeat(fullStars);
+    if (halfStar) stars += '½';
+    stars += '☆'.repeat(emptyStars);
+
+    return stars;
+}
+
+// Функция показа уведомления
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `review-notification ${type}`;
+    notification.textContent = message;
+
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+// Обработчик предпросмотра фото
+document.getElementById('review-photo')?.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        // Проверка размера файла (5 MB)
+        if (file.size > 5 * 1024 * 1024) {
+            showNotification('Файл слишком большой. Максимальный размер 5 MB', 'error');
+            this.value = '';
+            return;
+        }
+
+        // Проверка типа файла
+        if (!file.type.startsWith('image/')) {
+            showNotification('Пожалуйста, выберите изображение', 'error');
+            this.value = '';
+            return;
+        }
+    }
+});
+
+// Очистка формы при закрытии модального окна
+document.addEventListener('DOMContentLoaded', function() {
+    const reviewModal = document.getElementById('review-modal');
+    if (reviewModal) {
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.attributeName === 'class' &&
+                    !reviewModal.classList.contains('active')) {
+                    // Сбрасываем форму при закрытии
+                    document.getElementById('review-form').reset();
+
+                    // Сбрасываем звезды
+                    document.querySelectorAll('.rating-input input').forEach(input => {
+                        input.checked = false;
+                    });
+                }
+            });
+        });
+
+        observer.observe(reviewModal, { attributes: true });
+    }
+});
+
+// Добавляем поддержку клавиши Escape для закрытия
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        modalManager.close('review-modal');
+        modalManager.close('view-reviews-modal');
+    }
+});
+</script>

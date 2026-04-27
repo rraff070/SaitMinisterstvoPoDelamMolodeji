@@ -1,0 +1,27 @@
+<div id="volunteer-modal" class="modal">
+    <div class="modal-content">
+        <span class="modal-close" onclick="modalManager.close('volunteer-modal')">&times;</span>
+        <h2>Информация о волонтере</h2>
+
+        <div class="volunteer-info" id="volunteer-info">
+            <!-- Динамически заполняется -->
+        </div>
+
+        <div class="volunteer-hours-history">
+            <h3>История часов</h3>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Мероприятие</th>
+                        <th>Дата</th>
+                        <th>Часы</th>
+                        <th>Статус</th>
+                    </tr>
+                </thead>
+                <tbody id="hours-history">
+                    <!-- Динамически заполняется -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

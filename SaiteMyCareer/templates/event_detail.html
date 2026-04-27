@@ -1,0 +1,736 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="event-detail">
+    <div class="event-header">
+        <h1>{{ event.title }}</h1>
+        <div class="event-location-header">
+            📍 {{ event.location }}
+        </div>
+        <div class="event-dates-header">
+            <div class="date-item">
+                <span class="label">📅 Проведение:</span>
+                <span class="value">{{ event.get_event_dates_string() }}</span>
+            </div>
+            <div class="date-item">
+                <span class="label">⏰ Регистрация:</span>
+                <span class="value">{{ event.get_registration_dates_string() }}</span>
+            </div>
+        </div>
+    </div>
+
+    {% if event.main_photo %}
+    <div class="event-main-photo">
+        <img src="{{ url_for('static', filename='uploads/' + event.main_photo) }}" alt="{{ event.title }}">
+    </div>
+    {% endif %}
+
+    <div class="event-description-section">
+        <h2>О мероприятии</h2>
+        <p>{{ event.description }}</p>
+    </div>
+
+    {% if event.additional_photos %}
+    {% set photos = event.additional_photos|from_json %}
+    {% if photos %}
+    <div class="event-gallery">
+        <h2>Фотогалерея</h2>
+        <div class="gallery-grid">
+            {% for photo in photos %}
+            <img src="{{ url_for('static', filename='uploads/' + photo) }}"
+                 alt="Фото мероприятия"
+                 class="gallery-image"
+                 onclick="openImage(this.src)">
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    {% if event.files %}
+    {% set materials = event.files|from_json %}
+    {% if materials %}
+    <div class="event-materials">
+        <h2>Материалы мероприятия</h2>
+        <div class="materials-list">
+            {% for material in materials %}
+            <div class="material-item">
+                <span class="material-icon">📄</span>
+                <span class="material-name">{{ material.name if material.name else 'Документ' }}</span>
+                <a href="{{ url_for('static', filename='uploads/' + (material.file if material.file else material)) }}"
+                   class="btn btn-secondary btn-small"
+                   download>
+                    Скачать
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <div class="event-registration-section">
+        <h2>Регистрация</h2>
+        {% if event.is_registration_open() %}
+            <div class="registration-buttons">
+                {% if event.use_participant_template %}
+                <button class="btn btn-primary register-btn"
+                        data-event-id="{{ event.id }}"
+                        data-reg-type="participant"
+                        onclick="openRegistrationModal({{ event.id }}, 'participant')">
+                    Участвовать как участник
+                </button>
+                {% endif %}
+
+                {% if event.use_volunteer_template %}
+                <button class="btn btn-secondary register-btn"
+                        data-event-id="{{ event.id }}"
+                        data-reg-type="volunteer"
+                        onclick="openRegistrationModal({{ event.id }}, 'volunteer')">
+                    Участвовать как волонтер
+                </button>
+                {% endif %}
+            </div>
+        {% else %}
+            <p class="info-message registration-closed">Регистрация на это мероприятие закрыта</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Модальное окно для регистрации -->
+<div id="registration-modal" class="modal">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeRegistrationModal()">&times;</span>
+        <h2 id="registration-modal-title">Регистрация</h2>
+        <form id="registration-form" onsubmit="submitRegistration(event)">
+            <div id="form-fields-container">
+                <!-- Динамически заполняется -->
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="agree_rules" name="agreed_to_rules" required>
+                    Я согласен с <a href="#" onclick="showRules(event, currentRegType)">правилами</a> *
+                </label>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">Зарегистрироваться</button>
+        </form>
+    </div>
+</div>
+
+<!-- Модальное окно с правилами -->
+<div id="rules-modal" class="modal">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeRulesModal()">&times;</span>
+        <h2 id="rules-title">Правила</h2>
+        <div id="rules-content" class="rules-content">
+            <!-- Правила загружаются динамически -->
+        </div>
+        <button class="btn btn-primary" onclick="acceptRules()">Принимаю</button>
+    </div>
+</div>
+
+<!-- Модальное окно для просмотра изображений -->
+<div id="image-modal" class="modal" onclick="closeImageModal()">
+    <span class="modal-close" onclick="closeImageModal()">&times;</span>
+    <img class="modal-image" id="expanded-image">
+</div>
+
+<style>
+.event-detail {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.event-header {
+    margin-bottom: 2rem;
+}
+
+.event-header h1 {
+    color: var(--color-primary-dark);
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.event-location-header {
+    font-size: 1.2rem;
+    color: var(--color-accent);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.event-dates-header {
+    display: flex;
+    gap: 2rem;
+    background: linear-gradient(135deg, var(--color-primary-dark), var(--color-secondary));
+    color: white;
+    padding: 1.5rem 2rem;
+    border-radius: 10px;
+    flex-wrap: wrap;
+}
+
+.date-item {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.date-item .label {
+    font-weight: 500;
+    opacity: 0.9;
+}
+
+.date-item .value {
+    font-weight: 600;
+}
+
+.event-main-photo {
+    margin: 2rem 0;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.event-main-photo img {
+    width: 100%;
+    max-height: 500px;
+    object-fit: cover;
+}
+
+.event-description-section {
+    background: white;
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin: 2rem 0;
+}
+
+.event-description-section h2 {
+    color: var(--color-primary-dark);
+    margin-bottom: 1rem;
+}
+
+.event-gallery {
+    margin: 2rem 0;
+}
+
+.event-gallery h2 {
+    color: var(--color-primary-dark);
+    margin-bottom: 1rem;
+}
+
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.gallery-image {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: transform 0.3s;
+}
+
+.gallery-image:hover {
+    transform: scale(1.05);
+}
+
+.event-materials {
+    margin: 2rem 0;
+}
+
+.event-materials h2 {
+    color: var(--color-primary-dark);
+    margin-bottom: 1rem;
+}
+
+.materials-list {
+    background: white;
+    border-radius: 10px;
+    padding: 1rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.material-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+}
+
+.material-item:last-child {
+    border-bottom: none;
+}
+
+.material-icon {
+    font-size: 1.5rem;
+    margin-right: 1rem;
+}
+
+.material-name {
+    flex: 1;
+    color: var(--color-text);
+}
+
+.event-registration-section {
+    background: white;
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin: 2rem 0;
+    text-align: center;
+}
+
+.event-registration-section h2 {
+    color: var(--color-primary-dark);
+    margin-bottom: 1.5rem;
+}
+
+.registration-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.registration-closed {
+    color: #dc3545;
+    font-weight: 500;
+}
+
+/* Модальное окно */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 2000;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 10px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+}
+
+.modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--color-text-light);
+}
+
+.modal-close:hover {
+    color: var(--color-accent);
+}
+
+#image-modal .modal-content {
+    background: transparent;
+    box-shadow: none;
+    max-width: 90%;
+    max-height: 90%;
+    padding: 0;
+}
+
+.modal-image {
+    max-width: 100%;
+    max-height: 90vh;
+    object-fit: contain;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--color-primary-dark);
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.form-group input,
+.form-group textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+    font-size: 1rem;
+    background-color: #fff;
+    color: #495057;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+    border-color: var(--color-accent);
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(211, 0, 103, 0.25);
+}
+
+.volunteer-note {
+    background-color: #e7f3ff;
+    border-left: 4px solid var(--color-primary);
+    padding: 10px 15px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    font-size: 0.95rem;
+    color: var(--color-primary-dark);
+}
+
+.volunteer-note a {
+    color: var(--color-accent);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.volunteer-note a:hover {
+    text-decoration: underline;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: normal;
+    cursor: pointer;
+    color: #333;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+    margin-right: 0.5rem;
+    cursor: pointer;
+}
+
+.checkbox-label a {
+    color: var(--color-accent);
+    text-decoration: none;
+}
+
+.checkbox-label a:hover {
+    text-decoration: underline;
+}
+
+.rules-content {
+    margin: 1rem 0;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 5px;
+}
+
+.rules-content h3 {
+    color: var(--color-primary-dark);
+    margin: 1rem 0 0.5rem;
+    font-size: 1.1rem;
+}
+
+.rules-content h3:first-child {
+    margin-top: 0;
+}
+
+.rules-content ul {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+}
+
+.rules-content li {
+    margin-bottom: 0.25rem;
+}
+
+.btn-block {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1.1rem;
+    margin-top: 1rem;
+}
+
+.info-message {
+    color: var(--color-text-light);
+    font-style: italic;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .event-detail {
+        padding: 1rem;
+    }
+
+    .event-header h1 {
+        font-size: 1.8rem;
+    }
+
+    .event-dates-header {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .registration-buttons {
+        flex-direction: column;
+    }
+
+    .gallery-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+
+    .modal-content {
+        padding: 1.5rem;
+    }
+}
+</style>
+
+<script>
+let currentEventId = {{ event.id }};
+let currentRegType = null;
+let isAuthenticated = {{ 'true' if current_user.is_authenticated else 'false' }};
+
+// Глобальная функция для открытия модального окна регистрации
+window.openRegistrationModal = function(eventId, regType) {
+    console.log('Opening modal for:', regType, 'Authenticated:', isAuthenticated);
+    currentEventId = eventId;
+    currentRegType = regType;
+
+    // Для волонтеров без авторизации - редирект на логин
+    if (regType === 'volunteer' && !isAuthenticated) {
+        alert('Для регистрации волонтером необходимо войти в систему');
+        window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`;
+        return;
+    }
+
+    const modal = document.getElementById('registration-modal');
+    const title = document.getElementById('registration-modal-title');
+    title.textContent = regType === 'volunteer' ? 'Регистрация волонтера' : 'Регистрация участника';
+
+    // Загружаем данные пользователя
+    fetch(`/api/event/${eventId}/registration-data`)
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('form-fields-container');
+            const userData = data.user_data;
+
+            let html = '';
+
+            if (regType === 'volunteer') {
+                // Для волонтеров (только авторизованные) - данные из профиля, но можно редактировать
+                html = `
+                    <div class="volunteer-note">
+                        ⚠️ Проверьте данные, в случае ошибки исправьте их в
+                        <a href="{{ url_for('profile') }}" target="_blank">настройках профиля</a>
+                    </div>
+                    <div class="form-group">
+                        <label for="full_name">ФИО *</label>
+                        <input type="text" id="full_name" name="full_name" value="${userData.full_name || ''}" required placeholder="Иванов Иван Иванович" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="phone">Телефон *</label>
+                        <input type="text" id="phone" name="phone" value="${userData.phone || ''}" required placeholder="+7(999)999-99-99" class="form-control phone-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="birth_date">Дата рождения *</label>
+                        <input type="date" id="birth_date" name="birth_date" value="${userData.birth_date || ''}" required class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="experience">Опыт волонтерства</label>
+                        <textarea id="experience" name="experience" class="form-control" rows="3">${userData.experience || ''}</textarea>
+                    </div>
+                `;
+            } else {
+                // Для участников (все пользователи) - пустые поля для ввода
+                html = `
+                    <div class="form-group">
+                        <label for="full_name">ФИО *</label>
+                        <input type="text" id="full_name" name="full_name" value="" required placeholder="Иванов Иван Иванович" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="phone">Телефон *</label>
+                        <input type="text" id="phone" name="phone" value="" required placeholder="+7(999)999-99-99" class="form-control phone-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="birth_date">Дата рождения *</label>
+                        <input type="date" id="birth_date" name="birth_date" value="" required class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email (необязательно)</label>
+                        <input type="email" id="email" name="email" value="" placeholder="email@example.com" class="form-control">
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+
+            // Обновляем ссылку на правила
+            const rulesLink = document.querySelector('.checkbox-label a');
+            if (rulesLink) {
+                rulesLink.setAttribute('onclick', `showRules(event, '${regType}')`);
+            }
+
+            modal.classList.add('active');
+
+            // Добавляем маску для телефона
+            const phoneInput = document.getElementById('phone');
+            if (phoneInput) {
+                phoneInput.addEventListener('input', function(e) {
+                    let x = e.target.value.replace(/\D/g, '').match(/(\d{0,1})(\d{0,3})(\d{0,3})(\d{0,2})(\d{0,2})/);
+                    if (x) {
+                        e.target.value = !x[2] ? x[1] : '+7(' + x[2] + ')' + (x[3] ? x[3] : '') + (x[4] ? '-' + x[4] : '') + (x[5] ? '-' + x[5] : '');
+                    }
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error loading registration data:', error);
+            alert('Ошибка при загрузке данных');
+        });
+};
+
+function closeRegistrationModal() {
+    document.getElementById('registration-modal').classList.remove('active');
+}
+
+function submitRegistration(event) {
+    event.preventDefault();
+
+    const agreed = document.getElementById('agree_rules').checked;
+
+    if (!agreed) {
+        alert('Необходимо согласиться с правилами');
+        return;
+    }
+
+    // Собираем данные формы
+    let formData = {
+        agreed_to_rules: agreed
+    };
+
+    const fullNameInput = document.getElementById('full_name');
+    const phoneInput = document.getElementById('phone');
+    const birthDateInput = document.getElementById('birth_date');
+    const emailInput = document.getElementById('email');
+    const experienceInput = document.getElementById('experience');
+
+    if (fullNameInput) formData.full_name = fullNameInput.value;
+    if (phoneInput) formData.phone = phoneInput.value;
+    if (birthDateInput) formData.birth_date = birthDateInput.value;
+    if (emailInput) formData.email = emailInput.value;
+    if (experienceInput) formData.experience = experienceInput.value;
+
+    console.log('Sending data:', formData);
+
+    fetch(`/event/${currentEventId}/register/${currentRegType}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Регистрация успешна!');
+            closeRegistrationModal();
+            window.location.href = `/event/${currentEventId}`;
+        } else {
+            alert(data.error || 'Ошибка регистрации');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Ошибка соединения');
+    });
+}
+
+function showRules(event, regType) {
+    event.preventDefault();
+
+    const rulesModal = document.getElementById('rules-modal');
+    const rulesTitle = document.getElementById('rules-title');
+    const rulesContent = document.getElementById('rules-content');
+
+    if (regType === 'volunteer') {
+        rulesTitle.textContent = 'Правила для волонтеров';
+        rulesContent.innerHTML = `
+            <h3>1. Общие положения</h3>
+            <p>Волонтер обязан соблюдать правила внутреннего распорядка мероприятий.</p>
+            <h3>2. Обязанности волонтера</h3>
+            <ul>
+                <li>Своевременно прибывать на мероприятия</li>
+                <li>Выполнять поручения организаторов</li>
+                <li>Соблюдать этические нормы поведения</li>
+                <li>Бережно относиться к имуществу</li>
+            </ul>
+            <h3>3. Права волонтера</h3>
+            <ul>
+                <li>Получать волонтерские часы за участие</li>
+                <li>Получать необходимую информацию для выполнения задач</li>
+                <li>Вносить предложения по улучшению организации</li>
+            </ul>
+            <h3>4. Ответственность</h3>
+            <p>За нарушение правил волонтер может быть лишен часов или отстранен от участия.</p>
+        `;
+    } else {
+        rulesTitle.textContent = 'Правила для участников';
+        rulesContent.innerHTML = `
+            <h3>1. Общие положения</h3>
+            <p>Участник обязан соблюдать правила поведения на мероприятиях.</p>
+            <h3>2. Обязанности участника</h3>
+            <ul>
+                <li>Своевременно регистрироваться на мероприятия</li>
+                <li>Соблюдать расписание мероприятий</li>
+                <li>Уважительно относиться к другим участникам и организаторам</li>
+            </ul>
+            <h3>3. Права участника</h3>
+            <ul>
+                <li>Получать полную информацию о мероприятии</li>
+                <li>Участвовать в программе мероприятия</li>
+                <li>Оставлять отзывы и предложения</li>
+            </ul>
+        `;
+    }
+
+    rulesModal.classList.add('active');
+}
+
+function closeRulesModal() {
+    document.getElementById('rules-modal').classList.remove('active');
+}
+
+function acceptRules() {
+    document.getElementById('agree_rules').checked = true;
+    closeRulesModal();
+}
+
+function openImage(src) {
+    const modal = document.getElementById('image-modal');
+    const img = document.getElementById('expanded-image');
+    img.src = src;
+    modal.classList.add('active');
+}
+
+function closeImageModal() {
+    document.getElementById('image-modal').classList.remove('active');
+}
+</script>
+{% endblock %}

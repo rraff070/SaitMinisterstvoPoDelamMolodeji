@@ -1,0 +1,546 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Мероприятия</h1>
+
+<!-- Фильтры и поиск -->
+<div class="filters-section">
+    <div class="filters-container">
+        <div class="search-box">
+            <input type="text" id="search-input" placeholder="Поиск мероприятий..." class="search-input">
+            <i class="search-icon">🔍</i>
+        </div>
+
+        <div class="filter-group">
+            <select id="type-filter" class="filter-select">
+                <option value="all">Все типы</option>
+                <option value="participant">Только участники</option>
+                <option value="volunteer">Только волонтеры</option>
+                <option value="both">Участники и волонтеры</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <input type="date" id="date-from" class="filter-date" placeholder="Дата с">
+        </div>
+
+        <div class="filter-group">
+            <input type="date" id="date-to" class="filter-date" placeholder="Дата по">
+        </div>
+
+        <button class="btn btn-secondary" onclick="applyFilters()">Применить фильтры</button>
+        <button class="btn btn-outline" onclick="resetFilters()">Сбросить</button>
+    </div>
+
+    <div class="active-filters" id="active-filters"></div>
+</div>
+
+<div class="events-count" id="events-count">
+    Найдено мероприятий: <span id="count-value">{{ events|length }}</span>
+</div>
+
+<div class="events-grid" id="events-grid">
+    {% for event in events %}
+    <div class="event-card"
+         data-event-id="{{ event.id }}"
+         data-event-title="{{ event.title|lower }}"
+         data-event-start="{{ event.event_start_date }}"
+         data-event-end="{{ event.event_end_date }}"
+         data-event-type="{% if event.use_volunteer_template and event.use_participant_template %}both{% elif event.use_volunteer_template %}volunteer{% elif event.use_participant_template %}participant{% else %}none{% endif %}">
+
+        {% if event.main_photo %}
+        <img src="{{ url_for('static', filename='uploads/' + event.main_photo) }}"
+             alt="{{ event.title }}"
+             class="event-image">
+        {% else %}
+        <img src="{{ url_for('static', filename='images/placeholder.jpg') }}"
+             alt="Placeholder"
+             class="event-image">
+        {% endif %}
+
+        <div class="event-content">
+            <h3 class="event-title">{{ event.title }}</h3>
+
+            <div class="event-badges">
+                {% if event.use_volunteer_template and event.use_participant_template %}
+                <span class="badge both">👥 Участники и волонтеры</span>
+                {% elif event.use_volunteer_template %}
+                <span class="badge volunteer">🤝 Только волонтеры</span>
+                {% elif event.use_participant_template %}
+                <span class="badge participant">👤 Только участники</span>
+                {% endif %}
+
+                {% if not event.is_registration_open() %}
+                <span class="badge closed">⏰ Регистрация закрыта</span>
+                {% endif %}
+            </div>
+
+            <div class="event-location">
+                📍 {{ event.location }}
+            </div>
+
+            <div class="event-dates">
+                <div class="event-date">
+                    <span class="date-label">📅 Проведение:</span>
+                    <span class="date-value">{{ event.get_event_dates_string() }}</span>
+                </div>
+                <div class="event-deadline">
+                    <span class="date-label">⏰ Регистрация:</span>
+                    <span class="date-value">{{ event.get_registration_dates_string() }}</span>
+                </div>
+            </div>
+
+            <p class="event-description">{{ event.description[:150] }}...</p>
+
+            <div class="event-stats">
+                <span class="stat">👥 {{ event.get_participant_count() }} участников</span>
+                <span class="stat">🤝 {{ event.get_volunteer_count() }} волонтеров</span>
+            </div>
+
+            <div class="event-buttons">
+                <a href="{{ url_for('event_detail', event_id=event.id) }}" class="btn btn-primary">Подробнее</a>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="no-events">
+        <p>Пока нет предстоящих мероприятий</p>
+    </div>
+    {% endfor %}
+</div>
+
+<style>
+.filters-section {
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin: 2rem 0;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.filters-container {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.search-box {
+    flex: 1;
+    min-width: 250px;
+    position: relative;
+}
+
+.search-input {
+    width: 100%;
+    padding: 0.75rem 1rem 0.75rem 2.5rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 1rem;
+    transition: border-color 0.3s;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--color-accent);
+}
+
+.search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #999;
+}
+
+.filter-group {
+    min-width: 150px;
+}
+
+.filter-select,
+.filter-date {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 0.95rem;
+    background: white;
+}
+
+.filter-select:focus,
+.filter-date:focus {
+    outline: none;
+    border-color: var(--color-accent);
+}
+
+.active-filters {
+    margin-top: 1rem;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.filter-tag {
+    background: var(--color-primary);
+    color: white;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.filter-tag button {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 1.2rem;
+    line-height: 1;
+    padding: 0;
+}
+
+.filter-tag button:hover {
+    opacity: 0.8;
+}
+
+.events-count {
+    margin: 1rem 0;
+    font-size: 1.1rem;
+    color: var(--color-text);
+}
+
+.events-count span {
+    font-weight: 600;
+    color: var(--color-accent);
+}
+
+.events-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.event-card {
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    transition: transform 0.3s, box-shadow 0.3s;
+    display: flex;
+    flex-direction: column;
+}
+
+.event-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+}
+
+.event-image {
+    width: 100%;
+    height: 250px;
+    object-fit: cover;
+}
+
+.event-content {
+    padding: 1.5rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.event-title {
+    color: var(--color-primary-dark);
+    font-size: 1.3rem;
+    margin-bottom: 0.75rem;
+}
+
+.event-badges {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.badge {
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.badge.both {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    color: white;
+}
+
+.badge.volunteer {
+    background: var(--color-accent);
+    color: white;
+}
+
+.badge.participant {
+    background: var(--color-primary);
+    color: white;
+}
+
+.badge.closed {
+    background: #6c757d;
+    color: white;
+}
+
+.event-location {
+    color: var(--color-text-light);
+    font-size: 0.95rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.event-dates {
+    background: #f8f9fa;
+    padding: 0.75rem;
+    border-radius: 5px;
+    margin-bottom: 1rem;
+}
+
+.event-date,
+.event-deadline {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.95rem;
+}
+
+.event-date {
+    margin-bottom: 0.5rem;
+}
+
+.date-label {
+    color: var(--color-text-light);
+}
+
+.date-value {
+    font-weight: 500;
+    color: var(--color-primary-dark);
+}
+
+.event-description {
+    color: var(--color-text);
+    line-height: 1.6;
+    margin-bottom: 1rem;
+    flex: 1;
+}
+
+.event-stats {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 0;
+    border-top: 1px solid #eee;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 1rem;
+}
+
+.stat {
+    color: var(--color-text-light);
+    font-size: 0.9rem;
+}
+
+.event-buttons {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 0.5rem 1.2rem;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+    flex: 1;
+}
+
+.btn-primary {
+    background-color: var(--color-accent);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: var(--color-accent-dark);
+    transform: translateY(-2px);
+}
+
+.no-events {
+    text-align: center;
+    color: var(--color-text-light);
+    padding: 4rem;
+    background: white;
+    border-radius: 10px;
+    grid-column: 1 / -1;
+    font-size: 1.2rem;
+}
+
+@media (max-width: 768px) {
+    .filters-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .search-box {
+        min-width: auto;
+    }
+
+    .events-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<script>
+let currentFilters = {
+    search: '',
+    type: 'all',
+    dateFrom: '',
+    dateTo: ''
+};
+
+function applyFilters() {
+    currentFilters.search = document.getElementById('search-input').value.toLowerCase();
+    currentFilters.type = document.getElementById('type-filter').value;
+    currentFilters.dateFrom = document.getElementById('date-from').value;
+    currentFilters.dateTo = document.getElementById('date-to').value;
+
+    filterEvents();
+    updateActiveFilters();
+}
+
+function resetFilters() {
+    document.getElementById('search-input').value = '';
+    document.getElementById('type-filter').value = 'all';
+    document.getElementById('date-from').value = '';
+    document.getElementById('date-to').value = '';
+
+    currentFilters = {
+        search: '',
+        type: 'all',
+        dateFrom: '',
+        dateTo: ''
+    };
+
+    filterEvents();
+    updateActiveFilters();
+}
+
+function filterEvents() {
+    const cards = document.querySelectorAll('.event-card');
+    let visibleCount = 0;
+
+    cards.forEach(card => {
+        const title = card.dataset.eventTitle;
+        const eventStart = card.dataset.eventStart;
+        const eventEnd = card.dataset.eventEnd;
+        const eventType = card.dataset.eventType;
+
+        let show = true;
+
+        if (currentFilters.search && !title.includes(currentFilters.search)) {
+            show = false;
+        }
+
+        if (show && currentFilters.type !== 'all' && eventType !== currentFilters.type) {
+            show = false;
+        }
+
+        if (show && currentFilters.dateFrom && eventStart < currentFilters.dateFrom) {
+            show = false;
+        }
+
+        if (show && currentFilters.dateTo && eventStart > currentFilters.dateTo) {
+            show = false;
+        }
+
+        card.style.display = show ? 'flex' : 'none';
+        if (show) visibleCount++;
+    });
+
+    document.getElementById('count-value').textContent = visibleCount;
+}
+
+function updateActiveFilters() {
+    const container = document.getElementById('active-filters');
+    let html = '';
+
+    if (currentFilters.search) {
+        html += `<span class="filter-tag">
+            Поиск: "${currentFilters.search}"
+            <button onclick="removeFilter('search')">×</button>
+        </span>`;
+    }
+
+    if (currentFilters.type !== 'all') {
+        let typeText = '';
+        if (currentFilters.type === 'participant') typeText = 'Только участники';
+        else if (currentFilters.type === 'volunteer') typeText = 'Только волонтеры';
+        else if (currentFilters.type === 'both') typeText = 'Участники и волонтеры';
+
+        html += `<span class="filter-tag">
+            Тип: ${typeText}
+            <button onclick="removeFilter('type')">×</button>
+        </span>`;
+    }
+
+    if (currentFilters.dateFrom) {
+        html += `<span class="filter-tag">
+            С: ${currentFilters.dateFrom}
+            <button onclick="removeFilter('dateFrom')">×</button>
+        </span>`;
+    }
+
+    if (currentFilters.dateTo) {
+        html += `<span class="filter-tag">
+            По: ${currentFilters.dateTo}
+            <button onclick="removeFilter('dateTo')">×</button>
+        </span>`;
+    }
+
+    container.innerHTML = html;
+}
+
+function removeFilter(filterName) {
+    if (filterName === 'search') {
+        document.getElementById('search-input').value = '';
+        currentFilters.search = '';
+    } else if (filterName === 'type') {
+        document.getElementById('type-filter').value = 'all';
+        currentFilters.type = 'all';
+    } else if (filterName === 'dateFrom') {
+        document.getElementById('date-from').value = '';
+        currentFilters.dateFrom = '';
+    } else if (filterName === 'dateTo') {
+        document.getElementById('date-to').value = '';
+        currentFilters.dateTo = '';
+    }
+
+    filterEvents();
+    updateActiveFilters();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+        searchInput.addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') {
+                applyFilters();
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

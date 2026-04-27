@@ -1,0 +1,567 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="profile-container">
+    <div class="profile-header">
+        <div class="profile-avatar-container">
+            <img src="{{ url_for('static', filename='uploads/' + user.avatar) if user.avatar and user.avatar != 'default-avatar.jpg' else url_for('static', filename='images/default-avatar.jpg') }}"
+                 alt="Аватар" class="profile-avatar" id="profile-avatar">
+            <form id="avatar-form" method="POST" action="{{ url_for('update_profile') }}" enctype="multipart/form-data" style="display: inline;">
+                <input type="file" id="avatar-input" name="avatar" accept="image/png, image/jpeg, image/jpg, image/gif" style="display: none;">
+                <button type="button" class="btn btn-secondary btn-small" onclick="document.getElementById('avatar-input').click()">
+                    Изменить фото
+                </button>
+            </form>
+        </div>
+
+        <div class="profile-info">
+            <h2>{{ user.last_name }} {{ user.first_name }} {{ user.middle_name }}</h2>
+            <p class="profile-role">{{ 'Администратор' if user.role == 'admin' else 'Волонтер' }}</p>
+
+            {% if user.role == 'volunteer' %}
+            <div class="profile-stats">
+                <div class="stat">
+                    <div class="stat-value">{{ user.total_hours }}</div>
+                    <div class="stat-label">Часов</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">{{ user.event_registrations|selectattr('registration_type', 'equalto', 'volunteer')|list|length }}</div>
+                    <div class="stat-label">Мероприятий</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="profile-tabs">
+        <button class="tab-btn active" onclick="showTab('info')">Личная информация</button>
+        <button class="tab-btn" onclick="showTab('events')">Мои мероприятия</button>
+        {% if user.role == 'volunteer' %}
+        <button class="tab-btn" onclick="showTab('hours')">Мои часы</button>
+        {% endif %}
+    </div>
+
+    <div class="tab-content active" id="tab-info">
+        <form id="profile-form" method="POST" action="{{ url_for('update_profile') }}" enctype="multipart/form-data">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="last_name">Фамилия *</label>
+                    <input type="text" id="last_name" name="last_name" value="{{ user.last_name or '' }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="first_name">Имя *</label>
+                    <input type="text" id="first_name" name="first_name" value="{{ user.first_name or '' }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="middle_name">Отчество *</label>
+                    <input type="text" id="middle_name" name="middle_name" value="{{ user.middle_name or '' }}" required>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="phone">Телефон *</label>
+                    <input type="text" id="phone" name="phone" value="{{ user.phone or '' }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="birth_date">Дата рождения *</label>
+                    <input type="date" id="birth_date" name="birth_date"
+                           value="{{ user.birth_date.strftime('%Y-%m-%d') if user.birth_date else '' }}" required>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" value="{{ user.email or '' }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="social_links">Социальные сети</label>
+                    <input type="text" id="social_links" name="social_links" value="{{ user.social_links or '' }}"
+                           placeholder="Ссылки на соцсети">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="experience">Опыт волонтерства</label>
+                <textarea id="experience" name="experience" rows="3">{{ user.experience or '' }}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="about">О себе</label>
+                <textarea id="about" name="about" rows="4">{{ user.about or '' }}</textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+        </form>
+    </div>
+
+    <div class="tab-content" id="tab-events">
+        <h3>Мои мероприятия</h3>
+
+        <div class="events-list">
+            {% for registration in registrations %}
+            <div class="event-registration-card">
+                <div class="event-info">
+                    <h4>{{ registration.event.title }}</h4>
+                    <p class="event-date">{{ registration.event.get_event_dates_string() }}</p>
+                    <p class="event-location">📍 {{ registration.event.location }}</p>
+                    <p class="registration-type">
+                        {{ 'Участник' if registration.registration_type == 'participant' else 'Волонтер' }}
+                    </p>
+                    <p class="registration-status">Статус: {{ registration.status }}</p>
+                </div>
+            </div>
+            {% else %}
+            <p class="no-data">Вы еще не зарегистрированы на мероприятия</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% if user.role == 'volunteer' %}
+    <div class="tab-content" id="tab-hours">
+        <h3>Мои волонтерские часы</h3>
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Мероприятие</th>
+                    <th>Дата</th>
+                    <th>Часы</th>
+                    <th>Штраф</th>
+                    <th>Итого</th>
+                    <th>Статус</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for hour in hours %}
+                <tr>
+                    <td>{{ hour.event.title }}</td>
+                    <td>{{ hour.event.get_event_dates_string() }}</td>
+                    <td>{{ hour.hours }}</td>
+                    <td>{{ hour.fine if hour.fine else 0 }}</td>
+                    <td>{{ hour.hours - (hour.fine if hour.fine else 0) }}</td>
+                    <td>
+                        {% if hour.status == 'approved' %}
+                        <span class="badge success">Зачтены</span>
+                        {% elif hour.status == 'pending' %}
+                        <span class="badge warning">Ожидание</span>
+                        {% elif hour.status == 'rejected' %}
+                        <span class="badge danger">Отклонены</span>
+                        {% elif hour.status == 'fine' %}
+                        <span class="badge danger">Штраф</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="no-data">Нет данных о часах</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.profile-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.profile-header {
+    background: linear-gradient(135deg, var(--color-primary-dark), var(--color-secondary));
+    color: white;
+    padding: 2rem;
+    border-radius: 10px;
+    margin-bottom: 2rem;
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.profile-avatar-container {
+    position: relative;
+    width: 150px;
+    height: 150px;
+}
+
+.profile-avatar {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 4px solid white;
+    object-fit: cover;
+}
+
+.profile-avatar-container button {
+    position: absolute;
+    bottom: -30px;
+    left: 10%;
+
+    white-space: nowrap;
+}
+
+.profile-info h2 {
+    margin-bottom: 0.5rem;
+}
+
+.profile-role {
+    opacity: 0.9;
+    margin-bottom: 1rem;
+}
+
+.profile-stats {
+    display: flex;
+    gap: 2rem;
+}
+
+.stat {
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--color-accent);
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+.profile-tabs {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.tab-btn {
+    padding: 0.5rem 1.5rem;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 1rem;
+    color: var(--color-text-light);
+    border-radius: 5px;
+    transition: all 0.3s;
+}
+
+.tab-btn:hover {
+    background-color: #f0f0f0;
+}
+
+.tab-btn.active {
+    background-color: var(--color-accent);
+    color: white;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+#profile-form {
+    background: white;
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+}
+
+#profile-form .form-group {
+    margin-bottom: 1rem;
+}
+
+#profile-form label {
+    display: block;
+    margin-bottom: 0.3rem;
+    color: var(--color-primary-dark);
+    font-weight: 500;
+}
+
+#profile-form input,
+#profile-form textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 0.95rem;
+    transition: border-color 0.3s;
+}
+
+#profile-form input:focus,
+#profile-form textarea:focus {
+    outline: none;
+    border-color: var(--color-accent);
+}
+
+#profile-form textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.events-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.event-registration-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.event-info h4 {
+    color: var(--color-primary-dark);
+    margin-bottom: 0.5rem;
+}
+
+.event-date {
+    color: var(--color-text-light);
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+}
+
+.event-location {
+    color: var(--color-text-light);
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+}
+
+.registration-type {
+    color: var(--color-accent);
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+}
+
+.registration-status {
+    font-size: 0.9rem;
+    color: var(--color-text-light);
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+}
+
+.table th {
+    background: var(--color-primary-dark);
+    color: white;
+    padding: 1rem;
+    text-align: left;
+}
+
+.table td {
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+}
+
+.badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.badge.success {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.badge.warning {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.badge.danger {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.no-data {
+    text-align: center;
+    color: var(--color-text-light);
+    padding: 2rem;
+    background: white;
+    border-radius: 10px;
+}
+
+@media (max-width: 768px) {
+    .profile-header {
+        flex-direction: column;
+        text-align: center;
+        padding: 1.5rem;
+    }
+
+    .profile-stats {
+        justify-content: center;
+    }
+
+    .event-registration-card {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .profile-tabs {
+        justify-content: center;
+    }
+
+    .table {
+        display: block;
+        overflow-x: auto;
+    }
+}
+</style>
+
+<script>
+function showTab(tabName) {
+    // Скрыть все табы
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+
+    // Убрать активный класс у всех кнопок
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    // Показать выбранный таб
+    document.getElementById(`tab-${tabName}`).classList.add('active');
+
+    // Подсветить кнопку
+    event.target.classList.add('active');
+}
+
+// Загрузка аватарки
+document.getElementById('avatar-input').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        // Проверка размера файла (макс 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Файл слишком большой. Максимальный размер 5MB');
+            this.value = '';
+            return;
+        }
+
+        // Проверка типа файла
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+        if (!allowedTypes.includes(file.type)) {
+            alert('Пожалуйста, выберите изображение в формате JPG, JPEG, PNG или GIF');
+            this.value = '';
+            return;
+        }
+
+        // Создаем FormData и отправляем
+        const formData = new FormData();
+        formData.append('avatar', file);
+
+        // Показываем индикатор загрузки
+        const btn = document.querySelector('.profile-avatar-container button');
+        const originalText = btn.textContent;
+        btn.textContent = 'Загрузка...';
+        btn.disabled = true;
+
+        fetch('/profile/update', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Обновляем аватарку на странице
+                const avatarImg = document.getElementById('profile-avatar');
+                // Добавляем timestamp чтобы избежать кэширования
+                avatarImg.src = `/static/uploads/${data.avatar}?t=${new Date().getTime()}`;
+                showNotification('Аватар успешно обновлен', 'success');
+            } else {
+                showNotification('Ошибка при загрузке аватара', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Ошибка соединения', 'error');
+        })
+        .finally(() => {
+            btn.textContent = originalText;
+            btn.disabled = false;
+            this.value = ''; // Очищаем input
+        });
+    }
+});
+
+// Функция для показа уведомлений
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        background: ${type === 'success' ? '#28a745' : '#dc3545'};
+        color: white;
+        border-radius: 5px;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+        z-index: 9999;
+        animation: slideIn 0.3s ease-out;
+    `;
+
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+// Добавляем стили для анимации
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

@@ -1,0 +1,825 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="admin-form-container">
+    <h1>{% if event %}Редактирование{% else %}Создание{% endif %} мероприятия</h1>
+
+    <form method="POST" enctype="multipart/form-data" class="admin-form" id="event-form">
+        <div class="form-section">
+            <h2>Основная информация</h2>
+
+            <div class="form-group">
+                <label for="title">Название мероприятия *</label>
+                <input type="text" id="title" name="title" required
+                       value="{{ event.title if event else '' }}">
+            </div>
+
+            <div class="form-group">
+                <label for="location">Место проведения *</label>
+                <input type="text" id="location" name="location" required
+                       value="{{ event.location if event else '' }}"
+                       placeholder="Например: г. Черкесск, ул. Ленина, 1">
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="event_start_date">Дата начала мероприятия *</label>
+                    <input type="date" id="event_start_date" name="event_start_date" required
+                           value="{{ event.event_start_date.strftime('%Y-%m-%d') if event else '' }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="event_end_date">Дата окончания мероприятия *</label>
+                    <input type="date" id="event_end_date" name="event_end_date" required
+                           value="{{ event.event_end_date.strftime('%Y-%m-%d') if event else '' }}">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="registration_start_date">Начало регистрации *</label>
+                    <input type="date" id="registration_start_date" name="registration_start_date" required
+                           value="{{ event.registration_start_date.strftime('%Y-%m-%d') if event else '' }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="registration_end_date">Окончание регистрации *</label>
+                    <input type="date" id="registration_end_date" name="registration_end_date" required
+                           value="{{ event.registration_end_date.strftime('%Y-%m-%d') if event else '' }}">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Описание мероприятия</label>
+                <textarea id="description" name="description" rows="6">{{ event.description if event else '' }}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="main_photo">Главное фото</label>
+                <input type="file" id="main_photo" name="main_photo" accept="image/*">
+                {% if event and event.main_photo %}
+                <div class="current-file">
+                    <p>Текущее фото:</p>
+                    <img src="{{ url_for('static', filename='uploads/' + event.main_photo) }}" alt="Preview" class="photo-preview">
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="additional_photos">Дополнительные фото (можно выбрать несколько)</label>
+                <input type="file" id="additional_photos" name="additional_photos" accept="image/*" multiple>
+                <small class="form-text">Удерживайте Ctrl для выбора нескольких файлов</small>
+                {% if event and event.additional_photos %}
+                {% set photos = event.additional_photos|from_json %}
+                {% if photos %}
+                <div class="current-file">
+                    <p>Текущие фото:</p>
+                    <div class="photo-gallery" id="photo-gallery">
+                        {% for photo in photos %}
+                        <div class="photo-item" id="photo-{{ loop.index }}">
+                            <img src="{{ url_for('static', filename='uploads/' + photo) }}" alt="Preview" class="photo-preview-small">
+                            <button type="button" class="btn btn-danger btn-small" onclick="removePhoto('{{ photo }}', {{ event.id }})">×</button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label>Материалы мероприятия (положения, документы и т.д.)</label>
+                <div class="materials-list" id="materials-list">
+                    {% if event and event.files %}
+                    {% set materials = event.files|from_json %}
+                    {% for material in materials %}
+                    <div class="material-item existing" id="material-{{ loop.index }}">
+                        <span class="material-name">{{ material.name }}</span>
+                        <span class="material-file">{{ material.file }}</span>
+                        <button type="button" class="btn btn-danger btn-small" onclick="removeExistingMaterial(this, '{{ material.file }}', {{ event.id }})">Удалить</button>
+                        <input type="hidden" name="existing_materials" value='{{ material|tojson }}'>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+
+                <div class="new-materials">
+                    <h4>Добавить новые материалы:</h4>
+                    <div id="new-materials-container">
+                        <!-- Шаблон для новых материалов -->
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-small" onclick="addMaterialField()">
+                        + Добавить материал
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h2>Настройки регистрации</h2>
+
+            <div class="form-group">
+                <label>Кто может регистрироваться:</label>
+                <div class="checkbox-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="use_volunteer_template" value="yes"
+                               {% if not event or event.use_volunteer_template %}checked{% endif %}>
+                        Волонтеры
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="use_participant_template" value="yes"
+                               {% if not event or event.use_participant_template %}checked{% endif %}>
+                        Участники
+                    </label>
+                </div>
+                <small class="form-text">Можно выбрать оба варианта или ни одного (тогда регистрация будет закрыта)</small>
+            </div>
+
+            <div class="form-group">
+                <label>Шаблоны регистрации:</label>
+                <div class="templates-preview">
+                    <div class="template-card">
+                        <h3>Для волонтеров</h3>
+                        <ul>
+                            <li>✓ ФИО (автоматически из профиля)</li>
+                            <li>✓ Номер телефона (автоматически из профиля)</li>
+                            <li>✓ Дата рождения (автоматически из профиля)</li>
+                            <li>✓ Опыт (автоматически из профиля)</li>
+                            <li>✓ Согласие с правилами волонтера</li>
+                        </ul>
+                    </div>
+                    <div class="template-card">
+                        <h3>Для участников</h3>
+                        <ul>
+                            <li>✓ ФИО (автоматически из профиля)</li>
+                            <li>✓ Номер телефона (автоматически из профиля)</li>
+                            <li>✓ Дата рождения (автоматически из профиля)</li>
+                            <li>✓ Согласие с правилами участника</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h2>Бюджет и закупки</h2>
+
+            <div class="budget-checklist">
+                <h3>Чек-лист закупок</h3>
+
+                <div class="budget-item-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <input type="text" id="item-name" placeholder="Наименование">
+                        </div>
+                        <div class="form-group">
+                            <input type="number" id="item-quantity" placeholder="Количество" min="1" value="1">
+                        </div>
+                        <div class="form-group">
+                            <input type="number" id="item-price" placeholder="Цена за ед." min="0" step="0.01" value="0">
+                        </div>
+                        <button type="button" class="btn btn-secondary" onclick="addBudgetItem()">Добавить</button>
+                    </div>
+                </div>
+
+                <table class="table" id="budget-table">
+                    <thead>
+                        <tr>
+                            <th>Наименование</th>
+                            <th>Количество</th>
+                            <th>Цена</th>
+                            <th>Сумма</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="budget-items">
+                        <!-- Динамически добавляемые пункты -->
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="3"><strong>Итого:</strong></td>
+                            <td><strong id="budget-total">0 ₽</strong></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <input type="hidden" name="budget_data" id="budget-data" value="[]">
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Сохранить мероприятие</button>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline">Отмена</a>
+        </div>
+    </form>
+</div>
+
+<!-- Шаблон для нового материала -->
+<template id="material-template">
+    <div class="material-item new">
+        <div class="form-row">
+            <div class="form-group">
+                <input type="text" name="material_name[]" placeholder="Название материала" class="material-name-input">
+            </div>
+            <div class="form-group">
+                <input type="file" name="material_file[]" accept=".pdf,.doc,.docx" class="material-file-input">
+            </div>
+            <div class="form-group">
+                <button type="button" class="btn btn-danger btn-small" onclick="removeMaterialField(this)">Удалить</button>
+            </div>
+        </div>
+    </div>
+</template>
+
+<style>
+.admin-form-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.admin-form {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 2rem;
+}
+
+.form-section {
+    margin-bottom: 2rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid #eee;
+}
+
+.form-section h2 {
+    color: var(--color-primary-dark);
+    margin-bottom: 1.5rem;
+    font-size: 1.3rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--color-text);
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.form-group input[type="text"],
+.form-group input[type="date"],
+.form-group input[type="number"],
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 0.95rem;
+    transition: border-color 0.3s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--color-accent);
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 120px;
+}
+
+.form-text {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.85rem;
+    color: var(--color-text-light);
+}
+
+.checkbox-group {
+    display: flex;
+    gap: 2rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 5px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: normal;
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.templates-preview {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.template-card {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    padding: 1rem;
+}
+
+.template-card h3 {
+    color: var(--color-primary-dark);
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 0.5rem;
+}
+
+.template-card ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.template-card li {
+    margin-bottom: 0.5rem;
+    color: var(--color-text);
+    font-size: 0.95rem;
+}
+
+.template-card li:before {
+    content: "✓";
+    color: #28a745;
+    margin-right: 0.5rem;
+    font-weight: bold;
+}
+
+.current-file {
+    margin-top: 0.5rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 5px;
+    font-size: 0.9rem;
+}
+
+.photo-preview {
+    max-width: 300px;
+    max-height: 200px;
+    margin-top: 0.5rem;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+}
+
+.photo-gallery {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.photo-item {
+    position: relative;
+    display: inline-block;
+}
+
+.photo-preview-small {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+}
+
+.photo-item .btn-small {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 14px;
+    line-height: 24px;
+    text-align: center;
+    background: #dc3545;
+    color: white;
+    border: 2px solid white;
+}
+
+.photo-item .btn-small:hover {
+    background: #c82333;
+    transform: scale(1.1);
+}
+
+.materials-list {
+    margin-bottom: 1rem;
+}
+
+.material-item {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.material-item.existing {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    position: relative;
+}
+
+.material-name {
+    font-weight: 500;
+    color: var(--color-primary-dark);
+}
+
+.material-file {
+    color: var(--color-text-light);
+    font-size: 0.9rem;
+}
+
+.new-materials h4 {
+    color: var(--color-primary-dark);
+    margin: 1rem 0;
+    font-size: 1rem;
+}
+
+.budget-checklist {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 5px;
+}
+
+.budget-checklist h3 {
+    color: var(--color-primary-dark);
+    margin-bottom: 1rem;
+}
+
+.budget-item-form {
+    margin-bottom: 1rem;
+}
+
+#budget-table {
+    margin-top: 1rem;
+    background: white;
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#budget-table th {
+    background: var(--color-primary-dark);
+    color: white;
+    padding: 0.75rem;
+    text-align: left;
+}
+
+#budget-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+#budget-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+#budget-table tfoot td {
+    font-weight: bold;
+    background: #e9ecef;
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    margin-top: 2rem;
+}
+
+.btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 5px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-primary {
+    background: var(--color-accent);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--color-accent-dark);
+    transform: translateY(-2px);
+}
+
+.btn-secondary {
+    background: var(--color-primary);
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: var(--color-primary-dark);
+    transform: translateY(-2px);
+}
+
+.btn-outline {
+    background: transparent;
+    border: 2px solid var(--color-accent);
+    color: var(--color-accent);
+}
+
+.btn-outline:hover {
+    background: var(--color-accent);
+    color: white;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+}
+
+.btn-small {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .admin-form-container {
+        padding: 1rem;
+    }
+
+    .admin-form {
+        padding: 1rem;
+    }
+
+    .templates-preview {
+        grid-template-columns: 1fr;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .form-actions button,
+    .form-actions a {
+        width: 100%;
+        text-align: center;
+    }
+
+    .checkbox-group {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .material-item.existing {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .photo-gallery {
+        justify-content: center;
+    }
+}
+</style>
+
+<script>
+let budgetItems = [];
+let materialCount = 0;
+
+// Функции для работы с бюджетом
+function addBudgetItem() {
+    const name = document.getElementById('item-name').value;
+    const quantity = document.getElementById('item-quantity').value;
+    const price = document.getElementById('item-price').value;
+
+    if (name && quantity && price) {
+        const item = {
+            id: Date.now(),
+            name: name,
+            quantity: parseInt(quantity),
+            price: parseFloat(price)
+        };
+
+        budgetItems.push(item);
+        renderBudgetTable();
+
+        // Очистка полей
+        document.getElementById('item-name').value = '';
+        document.getElementById('item-quantity').value = '1';
+        document.getElementById('item-price').value = '0';
+    } else {
+        alert('Заполните все поля');
+    }
+}
+
+function removeBudgetItem(id) {
+    budgetItems = budgetItems.filter(item => item.id !== id);
+    renderBudgetTable();
+}
+
+function renderBudgetTable() {
+    const tbody = document.getElementById('budget-items');
+    const totalElement = document.getElementById('budget-total');
+    const budgetData = document.getElementById('budget-data');
+
+    let html = '';
+    let total = 0;
+
+    budgetItems.forEach(item => {
+        const sum = item.quantity * item.price;
+        total += sum;
+
+        html += `
+            <tr>
+                <td>${item.name}</td>
+                <td>${item.quantity}</td>
+                <td>${item.price.toFixed(2)} ₽</td>
+                <td>${sum.toFixed(2)} ₽</td>
+                <td>
+                    <button type="button" class="btn btn-danger btn-small" onclick="removeBudgetItem(${item.id})">
+                        Удалить
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+
+    if (budgetItems.length === 0) {
+        html = '<tr><td colspan="5" style="text-align: center; padding: 2rem;">Нет добавленных позиций</td></tr>';
+    }
+
+    tbody.innerHTML = html;
+    totalElement.textContent = `${total.toFixed(2)} ₽`;
+
+    // Сохраняем данные в скрытое поле
+    budgetData.value = JSON.stringify(budgetItems);
+}
+
+// Функции для работы с материалами
+function addMaterialField() {
+    const template = document.getElementById('material-template');
+    const clone = template.content.cloneNode(true);
+    document.getElementById('new-materials-container').appendChild(clone);
+    materialCount++;
+}
+
+function removeMaterialField(button) {
+    button.closest('.material-item').remove();
+}
+
+function removeExistingMaterial(button, fileName, eventId) {
+    if (confirm('Удалить этот материал?')) {
+        fetch(`/admin/event/${eventId}/remove-file`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ file: fileName })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                button.closest('.material-item').remove();
+                alert('Материал удален');
+            } else {
+                alert('Ошибка при удалении');
+            }
+        });
+    }
+}
+
+// Функция для удаления фото
+function removePhoto(photoName, eventId) {
+    if (confirm('Удалить это фото?')) {
+        fetch(`/admin/event/${eventId}/remove-photo`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ photo: photoName })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Находим и удаляем элемент фото
+                const photoItems = document.querySelectorAll('.photo-item');
+                photoItems.forEach(item => {
+                    if (item.querySelector('img').src.includes(photoName)) {
+                        item.remove();
+                    }
+                });
+                alert('Фото удалено');
+            } else {
+                alert('Ошибка при удалении фото');
+            }
+        });
+    }
+}
+
+// Инициализация при редактировании
+{% if event and event.budget_checklist %}
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        budgetItems = JSON.parse('{{ event.budget_checklist|safe }}' || '[]');
+        renderBudgetTable();
+    } catch (e) {
+        console.error('Error parsing budget data:', e);
+    }
+});
+{% endif %}
+
+// Предпросмотр главного фото
+document.getElementById('main_photo').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        if (file.size > 10 * 1024 * 1024) {
+            alert('Файл слишком большой. Максимальный размер 10MB');
+            this.value = '';
+            return;
+        }
+        if (!file.type.startsWith('image/')) {
+            alert('Пожалуйста, выберите изображение');
+            this.value = '';
+            return;
+        }
+    }
+});
+
+// Предпросмотр дополнительных фото
+document.getElementById('additional_photos').addEventListener('change', function(e) {
+    const files = e.target.files;
+    let totalSize = 0;
+    for (let i = 0; i < files.length; i++) {
+        totalSize += files[i].size;
+        if (!files[i].type.startsWith('image/')) {
+            alert('Файл "' + files[i].name + '" не является изображением');
+            this.value = '';
+            return;
+        }
+    }
+    if (totalSize > 50 * 1024 * 1024) {
+        alert('Общий размер файлов слишком большой. Максимум 50MB');
+        this.value = '';
+        return;
+    }
+});
+
+// Валидация дат
+document.getElementById('event-form').addEventListener('submit', function(e) {
+    const regStart = new Date(document.getElementById('registration_start_date').value);
+    const regEnd = new Date(document.getElementById('registration_end_date').value);
+    const eventStart = new Date(document.getElementById('event_start_date').value);
+    const eventEnd = new Date(document.getElementById('event_end_date').value);
+
+    if (regStart > regEnd) {
+        alert('Дата начала регистрации не может быть позже даты окончания');
+        e.preventDefault();
+        return;
+    }
+
+    if (eventStart > eventEnd) {
+        alert('Дата начала мероприятия не может быть позже даты окончания');
+        e.preventDefault();
+        return;
+    }
+
+    const useVolunteer = document.querySelector('input[name="use_volunteer_template"]').checked;
+    const useParticipant = document.querySelector('input[name="use_participant_template"]').checked;
+
+    if (!useVolunteer && !useParticipant) {
+        if (!confirm('Вы не выбрали ни один тип регистрации. Это означает, что никто не сможет зарегистрироваться на мероприятие. Продолжить?')) {
+            e.preventDefault();
+        }
+    }
+});
+</script>
+{% endblock %}
